@@ -10,6 +10,8 @@ export default function NewScanPage() {
   const router = useRouter();
   const [name, setName] = useState("demo-scan");
   const [file, setFile] = useState<File | null>(null);
+  const [dataLifetimeX, setDataLifetimeX] = useState(10);
+  const [migrationTimeY, setMigrationTimeY] = useState(4);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,8 +24,8 @@ export default function NewScanPage() {
     form.append("name", name);
     form.append("target_type", "zip_archive");
     form.append("file", file);
-    form.append("data_lifetime_x", "10");
-    form.append("migration_time_y", "4");
+    form.append("data_lifetime_x", dataLifetimeX.toString());
+    form.append("migration_time_y", migrationTimeY.toString());
     try {
       const res = await fetch(`${API_URL}/api/v1/scans`, {
         method: "POST",
@@ -66,6 +68,45 @@ export default function NewScanPage() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             required
           />
+
+          <div style={{ marginTop: 15, marginBottom: 15 }}>
+            <label htmlFor="scan-x">Data Lifetime (X): <strong>{dataLifetimeX}</strong> years</label>
+            <input
+              id="scan-x"
+              type="range"
+              min="1"
+              max="30"
+              step="1"
+              value={dataLifetimeX}
+              onChange={(e) => setDataLifetimeX(parseInt(e.target.value))}
+              style={{ width: "100%", display: "block", marginTop: 5 }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 15 }}>
+            <label htmlFor="scan-y">Migration Time (Y): <strong>{migrationTimeY}</strong> years</label>
+            <input
+              id="scan-y"
+              type="range"
+              min="1"
+              max="15"
+              step="1"
+              value={migrationTimeY}
+              onChange={(e) => setMigrationTimeY(parseInt(e.target.value))}
+              style={{ width: "100%", display: "block", marginTop: 5 }}
+            />
+          </div>
+
+          <div style={{ padding: 12, background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--border)", borderRadius: "6px", marginBottom: 20, fontSize: 13 }}>
+            <strong>Mosca Theorem Baseline Prediction:</strong> Z (CRQC Arrival) = 10.0 years.<br/>
+            Your total needed time: X + Y = <strong>{dataLifetimeX + migrationTimeY}</strong> years.<br/>
+            {(dataLifetimeX + migrationTimeY) > 10.0 ? (
+              <span style={{ color: "var(--danger)", fontWeight: "bold" }}>⚠️ Risk Margin Expired! Data confidentiality will be broken.</span>
+            ) : (
+              <span style={{ color: "var(--success)", fontWeight: "bold" }}>✅ Secure Margin: {10.0 - (dataLifetimeX + migrationTimeY)} years remaining.</span>
+            )}
+          </div>
+
           {error && <p className="error-text">{error}</p>}
           <button className="btn" type="submit" disabled={loading || !file}>
             {loading ? "Uploading…" : "Start Scan"}

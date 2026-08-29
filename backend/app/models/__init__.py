@@ -75,6 +75,8 @@ class Artefact(Base):
     hybrid_pair: Mapped[str | None] = mapped_column(String(128), nullable=True)
     recommendation_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     effort_level: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    nist_standard: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    timeline_urgency: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     scan: Mapped["Scan"] = relationship(back_populates="artefacts")
 

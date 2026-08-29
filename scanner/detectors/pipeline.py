@@ -6,6 +6,7 @@ from pathlib import Path
 from scanner.detectors.base import CryptoFinding
 from scanner.detectors.cert_detector import detect_certificates, detect_configs
 from scanner.detectors.source_detector import detect_manifests, detect_source
+from scanner.detectors.binary_detector import detect_binary
 
 
 def run_all_detectors(root: Path) -> list[CryptoFinding]:
@@ -14,6 +15,7 @@ def run_all_detectors(root: Path) -> list[CryptoFinding]:
     findings.extend(detect_manifests(root))
     findings.extend(detect_certificates(root))
     findings.extend(detect_configs(root))
+    findings.extend(detect_binary(root))
     return normalize_findings(findings)
 
 

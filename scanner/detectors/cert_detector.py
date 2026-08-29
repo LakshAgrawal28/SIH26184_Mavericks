@@ -46,9 +46,17 @@ def detect_certificates(root: Path) -> list[CryptoFinding]:
                 if key_size:
                     algo_name += f"-{key_size}"
 
+                suffix = ""
+                if days_left < 0:
+                    suffix = " [EXPIRED]"
+                elif days_left < 30:
+                    suffix = " [CRITICAL-EXPIRY]"
+                elif days_left < 90:
+                    suffix = " [EXPIRY-WARNING]"
+
                 findings.append(
                     CryptoFinding(
-                        name=f"Certificate: {subject[:80]}",
+                        name=f"Certificate: {subject[:80]}{suffix}",
                         asset_type="certificate",
                         algorithm=algo_name,
                         primitive="certificate",
@@ -63,6 +71,7 @@ def detect_certificates(root: Path) -> list[CryptoFinding]:
                             "notValidAfter": not_after.isoformat(),
                             "signatureAlgorithm": sig_algo,
                             "daysUntilExpiry": days_left,
+                            "days_to_expiry": days_left,
                         },
                     )
                 )

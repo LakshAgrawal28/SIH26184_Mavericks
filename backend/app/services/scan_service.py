@@ -82,6 +82,10 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
 
         critical = high = 0
         for f in findings:
+            cert_expiry_days = None
+            if f.asset_type == "certificate" and isinstance(f.raw_metadata, dict):
+                cert_expiry_days = f.raw_metadata.get("days_to_expiry")
+
             hndl, op, final, band = compute_risk(
                 algorithm=f.algorithm or f.name,
                 mode=f.mode,
@@ -91,8 +95,9 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 criticality=scan.business_criticality,
                 confidence=f.confidence,
                 asset_type=f.asset_type,
+                cert_expiry_days=cert_expiry_days,
             )
-            action, primary, hybrid, rationale, effort = recommend(f.algorithm or f.name, band)
+            action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(f.algorithm or f.name, band)
 
             if band == "CRITICAL":
                 critical += 1
@@ -125,6 +130,8 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 hybrid_pair=hybrid,
                 recommendation_rationale=rationale,
                 effort_level=effort,
+                nist_standard=nist_std,
+                timeline_urgency=urgency,
             )
             db.add(art)
 

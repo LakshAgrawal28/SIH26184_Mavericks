@@ -171,6 +171,8 @@ def list_artefacts(
                     "hybrid_pair": a.hybrid_pair,
                     "rationale": a.recommendation_rationale,
                     "effort": a.effort_level,
+                    "nist_standard": a.nist_standard,
+                    "timeline_urgency": a.timeline_urgency,
                 },
             }
             for a in items
@@ -230,6 +232,8 @@ def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User
                 "hybrid_pair": a.hybrid_pair,
                 "effort": a.effort_level,
                 "rationale": a.recommendation_rationale,
+                "nist_standard": a.nist_standard,
+                "timeline_urgency": a.timeline_urgency,
             }
             for a in items
             if a.recommendation_action not in (None, "Keep", "Monitor")

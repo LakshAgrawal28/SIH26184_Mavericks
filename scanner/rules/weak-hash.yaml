@@ -1,0 +1,46 @@
+# ECDAT Semgrep Rule — Weak Hash Functions
+# Reference: NIST IR 8547 (deprecating SHA-1, MD5 by 2030)
+rules:
+  - id: python-weak-hash-md5
+    patterns:
+      - pattern: hashlib.md5(...)
+    message: "MD5 is cryptographically broken. Use SHA-256 or SHA-3."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      cwe: CWE-327
+      nist_standard: "NIST IR 8547"
+      pqc_action: "Immediate Replacement → SHA-256"
+
+  - id: python-weak-hash-sha1
+    patterns:
+      - pattern: hashlib.sha1(...)
+    message: "SHA-1 is deprecated. Use SHA-256 or SHA-3."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      cwe: CWE-327
+      nist_standard: "NIST IR 8547"
+      pqc_action: "Immediate Replacement → SHA-256"
+
+  - id: java-weak-hash-md5
+    pattern: MessageDigest.getInstance("MD5")
+    message: "MD5 MessageDigest is cryptographically broken. Use SHA-256."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      cwe: CWE-327
+      nist_standard: "NIST IR 8547"
+
+  - id: java-weak-hash-sha1
+    pattern: MessageDigest.getInstance("SHA-1")
+    message: "SHA-1 MessageDigest is deprecated for new uses. Use SHA-256."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      cwe: CWE-327
+      nist_standard: "NIST IR 8547"

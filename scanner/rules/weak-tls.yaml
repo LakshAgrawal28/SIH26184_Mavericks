@@ -1,0 +1,23 @@
+# ECDAT Semgrep Rule — Weak TLS Versions
+# Reference: NIST SP 800-52 Rev 2 (TLS 1.0, 1.1 deprecated)
+rules:
+  - id: go-tls-min-version-weak
+    patterns:
+      - pattern: tls.Config{..., MinVersion: tls.VersionTLS10, ...}
+      - pattern: tls.Config{..., MinVersion: tls.VersionTLS11, ...}
+    message: "TLS 1.0/1.1 are deprecated. Set MinVersion to tls.VersionTLS12 or tls.VersionTLS13."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      cwe: CWE-326
+      nist_standard: "NIST SP 800-52 Rev 2"
+
+  - id: go-insecure-skip-verify
+    pattern: tls.Config{..., InsecureSkipVerify: true, ...}
+    message: "InsecureSkipVerify disables TLS certificate verification. Never use in production."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      cwe: CWE-295

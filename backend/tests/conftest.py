@@ -20,6 +20,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("SCAN_WORK_DIR", str(work_dir))
     monkeypatch.setenv("SYNC_SCAN", "true")
     monkeypatch.setenv("JWT_SECRET", "test-secret")
+    monkeypatch.setenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+    monkeypatch.setenv("DEFAULT_ADMIN_PASSWORD", "admin123")
 
     from app.main import app
     from fastapi.testclient import TestClient
