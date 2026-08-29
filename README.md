@@ -187,7 +187,7 @@ This starts:
 - **Celery Worker**: Background task scanner worker
 
 ### 4. Perform a Test Scan
-1. Open http://localhost:3000 in your browser and log in with default credentials (`admin@ecdat.local` / `admin123`).
+1. Open http://localhost:3000 in your browser and log in with default credentials (`admin@example.com` / `admin123`).
 2. Click **New Scan** and upload a sample project archive (e.g. `scanner/corpus/java-rsa-aes.zip`).
 3. Monitor real-time progress via WebSockets.
 4. Explore discovered cryptographic inventory, risk scores, Mosca timeline calculations, and PQC recommendations.
