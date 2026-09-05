@@ -2,7 +2,7 @@
 # Local dev without Docker: SQLite + sync scans
 set -e
 cd "$(dirname "$0")/.."
-export PYTHONPATH=backend:scanner
+export PYTHONPATH=backend:.
 export DATABASE_URL=sqlite:///./ecdat_dev.db
 export SYNC_SCAN=true
 export REDIS_URL=redis://localhost:6379/0

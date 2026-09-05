@@ -4,6 +4,10 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Nav from "@/components/Nav";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { API_URL, getToken } from "@/lib/api";
 
 export default function NewScanPage() {
@@ -42,75 +46,83 @@ export default function NewScanPage() {
     }
   }
 
+  const needed = dataLifetimeX + migrationTimeY;
+  const expired = needed > 10;
+
   return (
     <div className="container">
       <Nav title="New Scan">
         <Link href="/dashboard" className="nav-link">Dashboard</Link>
       </Nav>
       <div className="card">
-        <p style={{ margin: "0 0 20px", color: "var(--text-muted)", fontSize: 14 }}>
-          Upload a <code style={{ color: "#93c5fd" }}>.zip</code> archive from{" "}
-          <code style={{ color: "#93c5fd" }}>scanner/corpus/</code> for a quick demo scan.
+        <p className="lede">
+          Upload a <code>.zip</code> archive. For the SIH demo use{" "}
+          <code>scanner/corpus/archives/mixed-enterprise.zip</code>
+          {" "}(Java RSA + nginx TLS 1.0 + expiring cert + <code>.so</code>).
         </p>
         <form onSubmit={onSubmit}>
-          <label htmlFor="scan-name">Scan name</label>
-          <input
+          <Label htmlFor="scan-name">Scan name</Label>
+          <Input
             id="scan-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            className="mb-4"
           />
-          <label htmlFor="scan-file">Project archive (.zip)</label>
-          <input
+          <Label htmlFor="scan-file">Project archive (.zip)</Label>
+          <Input
             id="scan-file"
             type="file"
             accept=".zip"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             required
+            className="mb-4 h-auto py-2"
           />
 
-          <div style={{ marginTop: 15, marginBottom: 15 }}>
-            <label htmlFor="scan-x">Data Lifetime (X): <strong>{dataLifetimeX}</strong> years</label>
-            <input
+          <div className="mosca-field mb-4">
+            <Label htmlFor="scan-x">
+              <span>Data lifetime (X)</span>
+              <strong>{dataLifetimeX} years</strong>
+            </Label>
+            <Slider
               id="scan-x"
-              type="range"
-              min="1"
-              max="30"
-              step="1"
-              value={dataLifetimeX}
-              onChange={(e) => setDataLifetimeX(parseInt(e.target.value))}
-              style={{ width: "100%", display: "block", marginTop: 5 }}
+              min={1}
+              max={30}
+              step={1}
+              value={[dataLifetimeX]}
+              onValueChange={(v) => setDataLifetimeX(v[0] ?? 10)}
             />
           </div>
 
-          <div style={{ marginBottom: 15 }}>
-            <label htmlFor="scan-y">Migration Time (Y): <strong>{migrationTimeY}</strong> years</label>
-            <input
+          <div className="mosca-field mb-4">
+            <Label htmlFor="scan-y">
+              <span>Migration time (Y)</span>
+              <strong>{migrationTimeY} years</strong>
+            </Label>
+            <Slider
               id="scan-y"
-              type="range"
-              min="1"
-              max="15"
-              step="1"
-              value={migrationTimeY}
-              onChange={(e) => setMigrationTimeY(parseInt(e.target.value))}
-              style={{ width: "100%", display: "block", marginTop: 5 }}
+              min={1}
+              max={15}
+              step={1}
+              value={[migrationTimeY]}
+              onValueChange={(v) => setMigrationTimeY(v[0] ?? 4)}
             />
           </div>
 
-          <div style={{ padding: 12, background: "rgba(255, 255, 255, 0.03)", border: "1px solid var(--border)", borderRadius: "6px", marginBottom: 20, fontSize: 13 }}>
-            <strong>Mosca Theorem Baseline Prediction:</strong> Z (CRQC Arrival) = 10.0 years.<br/>
-            Your total needed time: X + Y = <strong>{dataLifetimeX + migrationTimeY}</strong> years.<br/>
-            {(dataLifetimeX + migrationTimeY) > 10.0 ? (
-              <span style={{ color: "var(--danger)", fontWeight: "bold" }}>⚠️ Risk Margin Expired! Data confidentiality will be broken.</span>
+          <div className={`callout ${expired ? "warn" : "ok"}`}>
+            <strong>Mosca baseline.</strong> Z (CRQC arrival) = 10.0 years.
+            Needed time X + Y = <strong>{needed}</strong> years.{" "}
+            {expired ? (
+              <span className="action-hot">Risk margin expired: data confidentiality will be broken.</span>
             ) : (
-              <span style={{ color: "var(--success)", fontWeight: "bold" }}>✅ Secure Margin: {10.0 - (dataLifetimeX + migrationTimeY)} years remaining.</span>
+              <span>Secure margin: {10 - needed} years remaining.</span>
             )}
           </div>
 
           {error && <p className="error-text">{error}</p>}
-          <button className="btn" type="submit" disabled={loading || !file}>
-            {loading ? "Uploading…" : "Start Scan"}
-          </button>
+          <Button type="submit" disabled={loading || !file}>
+            {loading ? "Uploading…" : "Start scan"}
+          </Button>
         </form>
       </div>
     </div>

@@ -1,23 +1,43 @@
-# ECDAT Semgrep Rule — Weak TLS Versions
-# Reference: NIST SP 800-52 Rev 2 (TLS 1.0, 1.1 deprecated)
+# ECDAT Semgrep — Weak TLS (NIST SP 800-52 Rev 2)
 rules:
-  - id: go-tls-min-version-weak
-    patterns:
-      - pattern: tls.Config{..., MinVersion: tls.VersionTLS10, ...}
-      - pattern: tls.Config{..., MinVersion: tls.VersionTLS11, ...}
-    message: "TLS 1.0/1.1 are deprecated. Set MinVersion to tls.VersionTLS12 or tls.VersionTLS13."
+  - id: ecdat.go-tls10
+    pattern: "tls.Config{..., MinVersion: tls.VersionTLS10, ...}"
+    message: TLS 1.0 is deprecated. Set MinVersion to tls.VersionTLS12 or tls.VersionTLS13.
     languages: [go]
     severity: ERROR
     metadata:
       category: cryptography
+      algorithm: TLS-1.0
+      primitive: protocol
+      asset_type: protocol
       cwe: CWE-326
-      nist_standard: "NIST SP 800-52 Rev 2"
+      nist_standard: NIST SP 800-52 Rev 2
+      ecdat_confidence: 0.95
 
-  - id: go-insecure-skip-verify
-    pattern: tls.Config{..., InsecureSkipVerify: true, ...}
-    message: "InsecureSkipVerify disables TLS certificate verification. Never use in production."
+  - id: ecdat.go-tls11
+    pattern: "tls.Config{..., MinVersion: tls.VersionTLS11, ...}"
+    message: TLS 1.1 is deprecated. Set MinVersion to tls.VersionTLS12 or tls.VersionTLS13.
     languages: [go]
     severity: ERROR
     metadata:
       category: cryptography
+      algorithm: TLS-1.1
+      primitive: protocol
+      asset_type: protocol
+      cwe: CWE-326
+      nist_standard: NIST SP 800-52 Rev 2
+      ecdat_confidence: 0.95
+
+  - id: ecdat.go-insecure-skip-verify
+    pattern: "tls.Config{..., InsecureSkipVerify: true, ...}"
+    message: InsecureSkipVerify disables TLS certificate verification. Never use in production.
+    languages: [go]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: TLS-InsecureSkipVerify
+      primitive: protocol
+      asset_type: protocol
       cwe: CWE-295
+      nist_standard: NIST SP 800-52 Rev 2
+      ecdat_confidence: 0.96

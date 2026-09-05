@@ -51,6 +51,24 @@ def test_sync_scan_java_rsa_aes_zip(client):
     assert summary.status_code == 200
     assert summary.json()["total_artefacts"] >= 2
 
+    mosca_expired = client.get(f"/api/v1/scans/{scan_id}/mosca", params={"x": 12, "y": 4}, headers=headers)
+    assert mosca_expired.status_code == 200
+    assert mosca_expired.json()["baseline_category"] == "EXPIRED"
+    mosca_urgent = client.get(f"/api/v1/scans/{scan_id}/mosca", params={"x": 6, "y": 3}, headers=headers)
+    assert mosca_urgent.json()["baseline_category"] == "URGENT"
+    assert mosca_urgent.json()["transition"]["label"].startswith("EXPIRED")
+
+    valid = client.get(f"/api/v1/scans/{scan_id}/reports/cbom/validate", headers=headers)
+    assert valid.status_code == 200
+    assert valid.json()["valid"] is True
+
+    acc = client.get("/api/v1/accuracy")
+    assert acc.status_code == 200
+    body = acc.json()
+    assert body["recall"] == 1.0
+    assert body["invented_algorithms"] == 0
+    assert body["deterministic"] is True
+
 
 def test_run_all_detectors_on_corpus_extracted(tmp_path):
     pytest.importorskip("scanner")

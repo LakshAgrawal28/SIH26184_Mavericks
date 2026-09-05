@@ -77,6 +77,14 @@ def detect_source(root: Path) -> list[CryptoFinding]:
                         continue
                     elif method == "certificate-marker":
                         continue
+                    elif method == "jwt":
+                        blob = f"{algo} {line}".upper()
+                        if "RS256" in blob:
+                            name, primitive = "RS256", "signature"
+                        elif "ES256" in blob:
+                            name, primitive = "ES256", "signature"
+                        else:
+                            name, primitive = "HS256", "mac"
                     else:
                         name = algo.upper() if isinstance(algo, str) and len(algo) < 40 else algo
                         primitive = "encryption" if any(x in str(algo).upper() for x in ("RSA", "AES", "DES")) else "unknown"

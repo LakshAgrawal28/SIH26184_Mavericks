@@ -1,31 +1,41 @@
-# ECDAT Semgrep Rule — RSA ECB Mode (Textbook RSA)
-# ECB mode for RSA is equivalent to textbook RSA — no semantic security.
+# ECDAT Semgrep — RSA ECB / textbook RSA (Shor-broken public-key encryption)
+# NIST FIPS 203: migrate to ML-KEM-768; hybrid X25519MLKEM768 during transition.
 rules:
-  - id: java-rsa-ecb-pkcs1
-    patterns:
+  - id: ecdat.java-rsa-ecb
+    pattern-either:
       - pattern: Cipher.getInstance("RSA/ECB/PKCS1Padding")
       - pattern: Cipher.getInstance("RSA/ECB/NoPadding")
       - pattern: Cipher.getInstance("RSA/ECB/OAEPWithSHA-1AndMGF1Padding")
+      - pattern: Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
+      - pattern: Cipher.getInstance("RSA")
     message: |
-      RSA/ECB mode is quantum-vulnerable (Shor's algorithm). 
+      RSA/ECB (textbook RSA) is quantum-vulnerable under Shor's algorithm.
       Migrate to ML-KEM-768 (NIST FIPS 203) with X25519MLKEM768 hybrid for TLS.
     languages: [java]
     severity: ERROR
     metadata:
       category: cryptography
       quantum_risk: CRITICAL
+      algorithm: RSA
+      primitive: pke
+      mode: ecb
       cwe: CWE-327
-      nist_standard: "NIST FIPS 203"
-      pqc_action: "Hybrid Migration → X25519MLKEM768"
+      nist_standard: NIST FIPS 203
+      pqc_action: Hybrid Migration → X25519MLKEM768
+      ecdat_confidence: 0.97
 
-  - id: java-rsa-keygen
-    pattern: KeyPairGenerator.getInstance("RSA")
-    message: "RSA key generation is quantum-vulnerable. Migrate to ML-KEM-768 or ML-DSA-65."
+  - id: ecdat.java-rsa-keygen
+    pattern-either:
+      - pattern: KeyPairGenerator.getInstance("RSA")
+      - pattern: KeyFactory.getInstance("RSA")
+    message: RSA key generation is quantum-vulnerable. Migrate to ML-KEM-768 or ML-DSA-65.
     languages: [java]
     severity: WARNING
     metadata:
       category: cryptography
-      quantum_risk: HIGH
+      quantum_risk: CRITICAL
+      algorithm: RSA
+      primitive: pke
       cwe: CWE-327
-      nist_standard: "NIST FIPS 203 / FIPS 204"
-      pqc_action: "Hybrid Migration → ML-KEM-768 or ML-DSA-65"
+      nist_standard: NIST FIPS 203 / FIPS 204
+      ecdat_confidence: 0.96

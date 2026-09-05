@@ -6,12 +6,11 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.engines.mosca_engine import compute_mosca
 from app.engines.pqc_engine import recommend
 from app.engines.risk_engine import compute_risk
 from app.models import Artefact, Scan
 from app.services.storage import storage_service
-from scanner.detectors.pipeline import finding_to_bom_ref, run_all_detectors, safe_extract_zip
+from scanner.detectors.pipeline import finding_to_bom_ref, run_all_detectors, safe_extract_zip, unpack_nested_archives
 
 _redis_client = None
 
@@ -65,9 +64,10 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         publish_progress(str(scan_id), {"status": "running", "progress_percentage": 15, "current_stage": scan.current_stage})
 
         file_count = safe_extract_zip(zip_path, extract_path)
+        file_count += unpack_nested_archives(extract_path)
         scan.total_files = file_count
 
-        scan.current_stage = "Running cryptographic detectors"
+        scan.current_stage = "Running Semgrep rules + cert/config/binary detectors"
         scan.progress_percentage = 40
         db.commit()
         publish_progress(str(scan_id), {"status": "running", "progress_percentage": 40, "current_stage": scan.current_stage})
@@ -97,7 +97,9 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 asset_type=f.asset_type,
                 cert_expiry_days=cert_expiry_days,
             )
-            action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(f.algorithm or f.name, band)
+            action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(
+                f.algorithm or f.library_name or f.name, band
+            )
 
             if band == "CRITICAL":
                 critical += 1
@@ -140,7 +142,13 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         scan.high_risk_count = high
         scan.status = "completed"
         scan.progress_percentage = 100
-        scan.current_stage = "Completed"
+        if findings:
+            scan.current_stage = f"Completed — {len(findings)} artefacts in {file_count} files"
+        else:
+            scan.current_stage = (
+                f"Completed — no cryptographic artefacts in {file_count} files. "
+                "Upload mixed-enterprise.zip or a project that contains crypto APIs, certs, or TLS configs."
+            )
         scan.completed_at = datetime.now(timezone.utc)
         db.commit()
 

@@ -24,6 +24,8 @@ export type ScanSummary = {
   status: string;
   total_artefacts: number;
   risk_distribution: Partial<Record<RiskBand, number>>;
+  detection_methods?: Record<string, number>;
+  layers_present?: string[];
   critical_risk_count: number;
   high_risk_count: number;
 };
@@ -44,6 +46,7 @@ export type Artefact = {
   file_path: string;
   line_number?: number;
   evidence_snippet?: string;
+  detection_method?: string;
   risk: ArtefactRisk;
   recommendation?: {
     action?: string;
@@ -65,13 +68,29 @@ export type MoscaScenario = {
 
 export type MoscaResult = {
   scan_id?: string;
+  formula?: string;
+  interpretation?: string;
+  live?: boolean;
   parameters: {
     data_lifetime_x: number;
     migration_time_y: number;
     total_time_needed?: number;
   };
+  saved_parameters?: {
+    data_lifetime_x: number;
+    migration_time_y: number;
+  };
   overall_category: string;
+  baseline_category?: string;
   scenarios: MoscaScenario[];
+  transition?: {
+    from: string;
+    to: string;
+    changed: boolean;
+    improved?: boolean;
+    worsened?: boolean;
+    label: string;
+  };
 };
 
 export type Recommendation = {

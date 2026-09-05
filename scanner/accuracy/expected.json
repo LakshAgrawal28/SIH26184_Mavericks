@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "published": true,
+  "notes": "Labelled expected cryptographic families per fixture. Recall is required-hit rate. Invented algorithms are denylisted families that must never appear.",
+  "invented_algorithms_denylist": [
+    "GOST",
+    "CAMELLIA",
+    "TWOFISH",
+    "BLOWFISH",
+    "SEED",
+    "ARIA",
+    "SM4",
+    "KASUMI",
+    "IDEA"
+  ],
+  "fixtures": {
+    "java-rsa-aes": {
+      "required": [
+        {"family": "RSA", "file_substr": "CryptoService.java"},
+        {"family": "AES"},
+        {"family": "MD5"}
+      ]
+    },
+    "python-crypto": {
+      "required": [
+        {"family": "MD5"},
+        {"family": "AES"}
+      ]
+    },
+    "nodejs-jwt": {
+      "required": [
+        {"family": "HS256"},
+        {"family": "DES"}
+      ]
+    },
+    "go-tls": {
+      "required": [
+        {"family": "TLS"}
+      ]
+    },
+    "openssl-certs": {
+      "required": [
+        {"asset_type": "certificate"}
+      ]
+    },
+    "weak-configs": {
+      "required": [
+        {"family": "TLS"}
+      ]
+    },
+    "pqc-modern": {
+      "required": [
+        {"family": "ML-KEM"}
+      ]
+    },
+    "mixed-enterprise": {
+      "required": [
+        {"family": "RSA", "file_substr": ".java"},
+        {"family": "MD5"},
+        {"asset_type": "certificate"},
+        {"family": "TLS"},
+        {"detection_method_prefix": "binary"}
+      ]
+    }
+  }
+}

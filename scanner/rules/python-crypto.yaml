@@ -1,0 +1,31 @@
+# ECDAT Semgrep — Python cryptography / PyCryptodome / hashlib
+rules:
+  - id: ecdat.python-aes-cbc
+    pattern-either:
+      - pattern: algorithms.AES(...)
+      - pattern: AES.new(...)
+      - pattern: modes.CBC(...)
+    message: AES-CBC usage detected. Prefer AES-256-GCM for authenticated encryption.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      algorithm: AES
+      primitive: block-cipher
+      mode: cbc
+      ecdat_confidence: 0.9
+
+  - id: ecdat.python-rsa
+    pattern-either:
+      - pattern: rsa.generate_private_key(...)
+      - pattern: RSA.generate(...)
+      - pattern: serialization.load_pem_private_key(...)
+    message: RSA key material detected. Public-key RSA is quantum-broken (Shor). Migrate to ML-KEM / ML-DSA.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: RSA
+      primitive: pke
+      nist_standard: NIST FIPS 203
+      ecdat_confidence: 0.88

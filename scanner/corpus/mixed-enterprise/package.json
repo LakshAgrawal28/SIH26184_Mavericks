@@ -1,0 +1,8 @@
+{
+  "name": "ntro-legacy-gateway",
+  "version": "0.9.4",
+  "dependencies": {
+    "jsonwebtoken": "8.5.1",
+    "node-forge": "1.3.1"
+  }
+}

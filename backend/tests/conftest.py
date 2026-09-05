@@ -23,6 +23,22 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
     monkeypatch.setenv("DEFAULT_ADMIN_PASSWORD", "admin123")
 
+    from app.config import settings
+    monkeypatch.setattr(settings, "sync_scan", True)
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{db_path}")
+    monkeypatch.setattr(settings, "scan_work_dir", str(work_dir))
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret")
+
+    from sqlalchemy import create_engine
+    from app.db import session as db_session
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
+    db_session.engine = engine
+    db_session.SessionLocal.configure(bind=engine)
+
     from app.main import app
     from fastapi.testclient import TestClient
 

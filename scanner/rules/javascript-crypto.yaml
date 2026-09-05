@@ -1,0 +1,29 @@
+# ECDAT Semgrep — Node.js crypto / JWT
+rules:
+  - id: ecdat.node-createcipher
+    pattern-either:
+      - pattern: crypto.createCipher(...)
+      - pattern: crypto.createCipheriv(...)
+      - pattern: crypto.createDecipher(...)
+    message: Node crypto cipher API detected. crypto.createCipher is deprecated and often wraps weak algorithms (DES).
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: DES
+      primitive: block-cipher
+      cwe: CWE-327
+      ecdat_confidence: 0.9
+
+  - id: ecdat.node-jwt-hs256
+    pattern-either:
+      - pattern: "jwt.sign($PAYLOAD, $SECRET, {algorithm: 'HS256'})"
+      - pattern: "jwt.sign($PAYLOAD, $SECRET, { algorithm: 'HS256' })"
+    message: JWT HS256 detected. Prefer RS256 only as a bridge; migrate signatures to ML-DSA-65.
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      algorithm: HS256
+      primitive: mac
+      ecdat_confidence: 0.92

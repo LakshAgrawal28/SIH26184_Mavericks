@@ -39,11 +39,13 @@ This branch includes a working MVP:
 ## Documentation (`docs/` Index)
 
 ### Teaching & SIH prep
+- [`docs/team-briefs/00-INDEX.md`](docs/team-briefs/00-INDEX.md) — **six one-person reading briefs**
 - [`docs/TEACHING_GUIDE.md`](docs/TEACHING_GUIDE.md)
 - [`docs/CRYPTO_CHEAT_SHEET.md`](docs/CRYPTO_CHEAT_SHEET.md)
 - [`docs/PRESENTATION_SCRIPT.md`](docs/PRESENTATION_SCRIPT.md)
 - [`docs/WINNING_GUIDE.md`](docs/WINNING_GUIDE.md)
 - [`docs/PRD.md`](docs/PRD.md)
+- [`docs/ACCURACY.md`](docs/ACCURACY.md)
 
 ### Technical specs
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
@@ -75,7 +77,7 @@ Login: `admin@example.com` / `admin123`
 
 ```bash
 # Backend
-export PYTHONPATH=backend:scanner
+export PYTHONPATH=backend:.
 export DATABASE_URL=sqlite:///./ecdat_dev.db
 export SYNC_SCAN=true
 export JWT_SECRET=dev-secret
@@ -92,9 +94,10 @@ Or use: `bash scripts/dev-api.sh`
 ### Demo scan
 
 1. Build sample zips: `python scanner/scripts/build_corpus_zips.py`
-2. Upload `scanner/corpus/archives/java-rsa-aes.zip` via **New Scan**
-3. Review inventory, Mosca scenarios, PQC recommendations
-4. Export CycloneDX CBOM JSON
+2. Upload `scanner/corpus/archives/mixed-enterprise.zip` via **New Scan** (Java RSA + nginx TLS 1.0 + expiring cert + `.so`)
+3. Drag Mosca X/Y sliders until Baseline flips **EXPIRED → URGENT**
+4. Confirm **CBOM VALID 1.6** then export CycloneDX JSON
+5. Open dashboard corpus accuracy (recall 1.0, 0 invented algorithms)
 
 ---
 

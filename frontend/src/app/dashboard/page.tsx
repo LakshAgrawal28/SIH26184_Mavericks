@@ -4,14 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
+import { Button } from "@/components/ui/button";
 import { apiFetch, getToken } from "@/lib/api";
 import type { Scan } from "@/lib/types";
 
 const SAMPLE_CORPUS = [
-  "scanner/corpus/java-rsa-aes.zip",
-  "scanner/corpus/python-crypto.zip",
-  "scanner/corpus/nodejs-jwt.zip",
-  "scanner/corpus/weak-configs.zip",
+  "scanner/corpus/archives/mixed-enterprise.zip",
+  "scanner/corpus/archives/java-rsa-aes.zip",
+  "scanner/corpus/archives/python-crypto.zip",
+  "scanner/corpus/archives/weak-configs.zip",
 ];
 
 function statusClass(status: string): string {
@@ -26,14 +27,21 @@ export default function DashboardPage() {
   const router = useRouter();
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accuracy, setAccuracy] = useState<{ headline?: string; recall?: number; invented_algorithms?: number; deterministic?: boolean } | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
       router.replace("/login");
       return;
     }
-    apiFetch<{ scans?: Scan[] }>("/api/v1/scans")
-      .then((data) => setScans(data.scans || []))
+    Promise.all([
+      apiFetch<{ scans?: Scan[] }>("/api/v1/scans"),
+      apiFetch<{ headline?: string; recall?: number; invented_algorithms?: number; deterministic?: boolean }>("/api/v1/accuracy").catch(() => null),
+    ])
+      .then(([data, acc]) => {
+        setScans(data.scans || []);
+        if (acc) setAccuracy(acc);
+      })
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
   }, [router]);
@@ -46,33 +54,53 @@ export default function DashboardPage() {
   return (
     <div className="container">
       <Nav title="Dashboard">
-        <Link href="/scans/new" className="btn">New Scan</Link>
+        <Button asChild>
+          <Link href="/scans/new">New Scan</Link>
+        </Button>
       </Nav>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginBottom: "28px" }}>
-        <div style={{ background: "var(--surface)", padding: "16px 20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
-          <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>Total Scans</div>
-          <div style={{ fontSize: "28px", fontWeight: "bold", color: "var(--text)", marginTop: "4px" }}>{totalScans}</div>
+      <div className="grid dash-stats">
+        <div className="stat">
+          <div className="label">Total scans</div>
+          <div className="value">{totalScans}</div>
         </div>
-        <div style={{ background: "var(--surface)", padding: "16px 20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
-          <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>Total Artefacts</div>
-          <div style={{ fontSize: "28px", fontWeight: "bold", color: "#60a5fa", marginTop: "4px" }}>{totalArtefacts}</div>
+        <div className="stat">
+          <div className="label">Total artefacts</div>
+          <div className="value">{totalArtefacts}</div>
         </div>
-        <div style={{ background: "var(--surface)", padding: "16px 20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", borderLeft: "4px solid var(--danger)" }}>
-          <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>Critical Risk</div>
-          <div style={{ fontSize: "28px", fontWeight: "bold", color: "var(--danger)", marginTop: "4px" }}>{totalCritical}</div>
+        <div className="stat critical">
+          <div className="label">Critical risk</div>
+          <div className="value">{totalCritical}</div>
         </div>
-        <div style={{ background: "var(--surface)", padding: "16px 20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", borderLeft: "4px solid var(--warning)" }}>
-          <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>High Risk</div>
-          <div style={{ fontSize: "28px", fontWeight: "bold", color: "var(--warning)", marginTop: "4px" }}>{totalHigh}</div>
+        <div className="stat high">
+          <div className="label">High risk</div>
+          <div className="value">{totalHigh}</div>
         </div>
       </div>
 
+      {accuracy && (
+        <div className="card card-highlight">
+          <p className="eyebrow">Scoreboard</p>
+          <h3>Published corpus accuracy</h3>
+          <p className="lede">
+            {accuracy.headline || "Deterministic detector scoreboard against labelled fixtures."}
+          </p>
+          <p>
+            Recall <strong>{accuracy.recall ?? "—"}</strong>
+            {" · "}
+            Invented algorithms <strong>{accuracy.invented_algorithms ?? "—"}</strong>
+            {" · "}
+            {accuracy.deterministic ? "Deterministic" : "Non-deterministic"}
+          </p>
+        </div>
+      )}
+
       <div className="card card-highlight">
-        <h3>Sample Corpus for Demo</h3>
-        <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>
+        <p className="eyebrow">Demonstration</p>
+        <h3>Sample corpus</h3>
+        <p className="lede">
           Upload one of the bundled test archives from the repo to run a quick demo scan.
-          See <code style={{ color: "#93c5fd" }}>scanner/corpus/</code> in the project root.
+          See <code>scanner/corpus/</code> in the project root.
         </p>
         <ul className="corpus-list">
           {SAMPLE_CORPUS.map((path) => (
@@ -81,13 +109,13 @@ export default function DashboardPage() {
             </li>
           ))}
         </ul>
-        <Link href="/scans/new" className="btn" style={{ marginTop: 16 }}>
-          Upload Sample Archive
-        </Link>
+        <Button asChild className="mt-4">
+          <Link href="/scans/new">Upload sample archive</Link>
+        </Button>
       </div>
 
       <div className="card">
-        <h3>Recent Scans</h3>
+        <h3>Recent scans</h3>
         {loading ? (
           <p className="empty-state">Loading scans…</p>
         ) : scans.length === 0 ? (
@@ -123,7 +151,7 @@ export default function DashboardPage() {
                     <td>{s.critical_risk_count}</td>
                     <td>{s.high_risk_count}</td>
                     <td>
-                      <Link href={`/scans/${s.scan_id}`}>Open →</Link>
+                      <Link href={`/scans/${s.scan_id}`}>Open</Link>
                     </td>
                   </tr>
                 ))}

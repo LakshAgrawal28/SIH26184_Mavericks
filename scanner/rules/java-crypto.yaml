@@ -1,0 +1,47 @@
+# ECDAT Semgrep — Java JCE / JCA cryptographic APIs
+rules:
+  - id: ecdat.java-aes-cbc
+    pattern-either:
+      - pattern: Cipher.getInstance("AES/CBC/PKCS5Padding")
+      - pattern: Cipher.getInstance("AES/CBC/NoPadding")
+      - pattern: Cipher.getInstance("AES")
+    message: AES detected. Prefer AES-256-GCM (authenticated encryption). AES-128 is weakened by Grover.
+    languages: [java]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      algorithm: AES
+      primitive: block-cipher
+      mode: cbc
+      nist_standard: NIST SP 800-38D
+      ecdat_confidence: 0.94
+
+  - id: ecdat.java-des
+    pattern-either:
+      - pattern: Cipher.getInstance("DES")
+      - pattern: Cipher.getInstance("DESede")
+      - pattern: Cipher.getInstance("DESede/CBC/PKCS5Padding")
+    message: DES / 3DES are broken or deprecated. Replace with AES-256-GCM.
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: 3DES
+      primitive: block-cipher
+      cwe: CWE-327
+      ecdat_confidence: 0.96
+
+  - id: ecdat.java-ec-keygen
+    pattern-either:
+      - pattern: KeyPairGenerator.getInstance("EC")
+      - pattern: KeyPairGenerator.getInstance("ECDSA")
+      - pattern: Signature.getInstance("SHA256withECDSA")
+    message: Elliptic-curve signatures are broken by Shor's algorithm. Migrate to ML-DSA-65 (FIPS 204).
+    languages: [java]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: ECDSA
+      primitive: signature
+      nist_standard: NIST FIPS 204
+      ecdat_confidence: 0.95

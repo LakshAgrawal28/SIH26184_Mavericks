@@ -2,13 +2,14 @@ import json
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.deps import get_current_user
 from app.db.session import SessionLocal, get_db
-from app.engines.mosca_engine import compute_mosca
+from app.engines.mosca_engine import compute_mosca, describe_transition
+from app.engines.pqc_engine import recommend
 from app.models import Artefact, Scan, User
 from app.schemas.api import ContextUpdate, ScanCreateResponse, ScanSummary
 from app.services.storage import storage_service
@@ -124,10 +125,16 @@ def update_context(scan_id: str, body: ContextUpdate, db: Session = Depends(get_
     scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
+    previous = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, _max_risk(db, scan.id))
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(scan, field, value)
     db.commit()
-    return {"ok": True}
+    db.refresh(scan)
+    current = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, _max_risk(db, scan.id))
+    current["scan_id"] = str(scan.id)
+    current["transition"] = describe_transition(previous["baseline_category"], current["baseline_category"])
+    current["saved"] = True
+    return {"ok": True, "mosca": current}
 
 
 @router.get("/{scan_id}/artefacts")
@@ -158,6 +165,7 @@ def list_artefacts(
                 "file_path": a.file_path,
                 "line_number": a.line_number,
                 "confidence": a.confidence,
+                "detection_method": a.detection_method,
                 "evidence_snippet": a.evidence_snippet,
                 "risk": {
                     "hndl_risk": a.hndl_risk,
@@ -186,29 +194,69 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
     artefacts = db.query(Artefact).filter(Artefact.scan_id == scan.id).all()
-    bands = {}
+    bands: dict[str, int] = {}
+    methods: dict[str, int] = {}
     for a in artefacts:
         bands[a.risk_band] = bands.get(a.risk_band, 0) + 1
+        methods[a.detection_method] = methods.get(a.detection_method, 0) + 1
+    layers = sorted(
+        {
+            "semgrep" if (m or "").startswith("semgrep") else
+            "certificate" if m in ("x509-parser", "pem-marker") else
+            "binary" if (m or "").startswith("binary") else
+            "config" if m == "config-scanner" else
+            "manifest" if (m or "").startswith("manifest") or m == "package-json" else
+            "source"
+            for m in methods
+        }
+    )
     return {
         "scan_id": str(scan.id),
         "name": scan.name,
         "status": scan.status,
         "total_artefacts": len(artefacts),
         "risk_distribution": bands,
+        "detection_methods": methods,
+        "layers_present": layers,
         "critical_risk_count": scan.critical_risk_count,
         "high_risk_count": scan.high_risk_count,
     }
 
 
+def _max_risk(db: Session, scan_id) -> float:
+    max_risk = (
+        db.query(Artefact.final_risk_score)
+        .filter(Artefact.scan_id == scan_id)
+        .order_by(Artefact.final_risk_score.desc())
+        .first()
+    )
+    return float(max_risk[0]) if max_risk and max_risk[0] else 0.0
+
+
 @router.get("/{scan_id}/mosca")
-def scan_mosca(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def scan_mosca(
+    scan_id: str,
+    x: float | None = Query(default=None, ge=1, le=50),
+    y: float | None = Query(default=None, ge=1, le=30),
+    z: float | None = Query(default=None, ge=1, le=40),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
-    max_risk = db.query(Artefact.final_risk_score).filter(Artefact.scan_id == scan.id).order_by(Artefact.final_risk_score.desc()).first()
-    fr = float(max_risk[0]) if max_risk and max_risk[0] else 0.0
-    result = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, fr)
+    fr = _max_risk(db, scan.id)
+    saved = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, fr)
+    use_x = scan.data_lifetime_x if x is None else x
+    use_y = scan.migration_time_y if y is None else y
+    result = compute_mosca(use_x, use_y, fr, extra_z=z)
     result["scan_id"] = str(scan.id)
+    result["live"] = x is not None or y is not None or z is not None
+    result["saved_parameters"] = {
+        "data_lifetime_x": scan.data_lifetime_x,
+        "migration_time_y": scan.migration_time_y,
+    }
+    result["transition"] = describe_transition(saved["baseline_category"], result["baseline_category"])
     return result
 
 
@@ -220,63 +268,133 @@ def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User
         .order_by(Artefact.final_risk_score.desc())
         .all()
     )
-    return {
-        "recommendations": [
+    recommendations = []
+    seen: set[tuple[str, str | None, str | None]] = set()
+    dirty = False
+    for a in items:
+        action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(
+            a.algorithm or a.library_name or a.name, a.risk_band or "LOW"
+        )
+        if (
+            a.recommendation_action != action
+            or a.primary_pqc != primary
+            or a.hybrid_pair != hybrid
+        ):
+            a.recommendation_action = action
+            a.primary_pqc = primary
+            a.hybrid_pair = hybrid
+            a.recommendation_rationale = rationale
+            a.effort_level = effort
+            a.nist_standard = nist_std
+            a.timeline_urgency = urgency
+            dirty = True
+        if action in (None, "Keep"):
+            continue
+        if action == "Monitor" and not primary:
+            continue
+        family = (a.library_name or a.algorithm or a.name or "").split("@")[0].lower()
+        key = (family, action, primary)
+        if key in seen:
+            continue
+        seen.add(key)
+        recommendations.append(
             {
                 "artefact_id": str(a.id),
                 "name": a.name,
                 "risk_band": a.risk_band,
                 "final_score": a.final_risk_score,
-                "action": a.recommendation_action,
-                "primary_pqc": a.primary_pqc,
-                "hybrid_pair": a.hybrid_pair,
-                "effort": a.effort_level,
-                "rationale": a.recommendation_rationale,
-                "nist_standard": a.nist_standard,
-                "timeline_urgency": a.timeline_urgency,
+                "action": action,
+                "primary_pqc": primary,
+                "hybrid_pair": hybrid,
+                "effort": effort,
+                "rationale": rationale,
+                "nist_standard": nist_std,
+                "timeline_urgency": urgency,
             }
-            for a in items
-            if a.recommendation_action not in (None, "Keep", "Monitor")
-        ],
-    }
+        )
+    if dirty:
+        db.commit()
+    return {"recommendations": recommendations, "count": len(recommendations)}
 
 
 @router.websocket("/{scan_id}/progress")
 async def scan_progress_ws(websocket: WebSocket, scan_id: str):
+    """Push scan status. Uses Redis when available; otherwise polls the database (local SYNC_SCAN)."""
     await websocket.accept()
-    import redis.asyncio as aioredis
+    import asyncio
 
-    r = aioredis.from_url(settings.redis_url, decode_responses=True)
-    pubsub = r.pubsub()
-    channel = f"scan:{scan_id}:progress"
-    await pubsub.subscribe(channel)
+    def snapshot() -> dict | None:
+        db = SessionLocal()
+        try:
+            scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
+            if not scan:
+                return None
+            return {
+                "scan_id": scan_id,
+                "status": scan.status,
+                "progress_percentage": scan.progress_percentage,
+                "current_stage": scan.current_stage,
+                "total_artefacts": scan.total_artefacts,
+                "total_files": scan.total_files,
+                "artefacts_found_so_far": scan.total_artefacts,
+                "critical_risk_count": scan.critical_risk_count,
+                "high_risk_count": scan.high_risk_count,
+                "error_message": scan.error_message,
+            }
+        finally:
+            db.close()
 
-    db = SessionLocal()
+    data = snapshot()
+    if data:
+        await websocket.send_json(data)
+        if data["status"] in ("completed", "failed"):
+            return
+
+    subscribed = False
+    r = None
+    pubsub = None
     try:
-        scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
-        if scan:
-            await websocket.send_json(
-                {
-                    "scan_id": scan_id,
-                    "status": scan.status,
-                    "progress_percentage": scan.progress_percentage,
-                    "current_stage": scan.current_stage,
-                    "artefacts_found_so_far": scan.total_artefacts,
-                }
-            )
-    finally:
-        db.close()
+        import redis.asyncio as aioredis
+
+        r = aioredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=0.4,
+        )
+        pubsub = r.pubsub()
+        await pubsub.subscribe(f"scan:{scan_id}:progress")
+        subscribed = True
+    except Exception:
+        subscribed = False
 
     try:
-        async for message in pubsub.listen():
-            if message["type"] != "message":
-                continue
-            await websocket.send_text(message["data"])
-            data = json.loads(message["data"])
-            if data.get("status") in ("completed", "failed"):
-                break
+        if subscribed and pubsub is not None:
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+                await websocket.send_text(message["data"])
+                payload = json.loads(message["data"])
+                if payload.get("status") in ("completed", "failed"):
+                    break
+        else:
+            while True:
+                await asyncio.sleep(0.5)
+                data = snapshot()
+                if not data:
+                    break
+                await websocket.send_json(data)
+                if data["status"] in ("completed", "failed"):
+                    break
     except WebSocketDisconnect:
         pass
     finally:
-        await pubsub.unsubscribe(channel)
-        await r.close()
+        if pubsub is not None:
+            try:
+                await pubsub.unsubscribe(f"scan:{scan_id}:progress")
+            except Exception:
+                pass
+        if r is not None:
+            try:
+                await r.close()
+            except Exception:
+                pass

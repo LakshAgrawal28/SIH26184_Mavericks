@@ -38,6 +38,17 @@ ALGORITHM_QV = {
     "ML-DSA-44": 0.0,
     "ML-DSA-87": 0.0,
     "SLH-DSA-128S": 0.0,
+    "HS256": 6.0,
+    "RS256": 10.0,
+    "ES256": 10.0,
+    "JWT": 9.0,
+    "JSONWEBTOKEN": 9.0,
+    "JWT.SIGN": 9.0,
+    "BCRYPT": 3.0,
+    "TLS": 8.0,
+    "TLS-1.0": 9.0,
+    "TLS-1.1": 9.0,
+    "TLS-INSECURESKIPVERIFY": 8.0,
 }
 
 CLASSICAL_WEAKNESS = {
@@ -82,6 +93,17 @@ PQC_MAP = {
     "ML-DSA-44": (None, None, "Keep"),
     "ML-DSA-87": (None, None, "Keep"),
     "SLH-DSA-128S": (None, None, "Keep"),
+    "HS256": ("ML-DSA-65", None, "Migrate"),
+    "RS256": ("ML-DSA-65", "RSA + ML-DSA-65", "Hybrid Migration"),
+    "ES256": ("ML-DSA-65", "ECDSA-P256+ML-DSA-65", "Hybrid Migration"),
+    "JWT": ("ML-DSA-65", "Ed25519+ML-DSA-65", "Hybrid Migration"),
+    "JSONWEBTOKEN": ("ML-DSA-65", "Ed25519+ML-DSA-65", "Hybrid Migration"),
+    "JWT.SIGN": ("ML-DSA-65", "Ed25519+ML-DSA-65", "Hybrid Migration"),
+    "BCRYPT": ("Argon2id", None, "Harden"),
+    "TLS": ("ML-KEM-768", "X25519MLKEM768", "Hybrid Migration"),
+    "TLS-1.0": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Immediate Replacement"),
+    "TLS-1.1": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Immediate Replacement"),
+    "TLS-INSECURESKIPVERIFY": ("TLS 1.3 with verification", None, "Immediate Replacement"),
 }
 
 MOSCA_SCENARIOS = [

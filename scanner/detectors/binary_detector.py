@@ -1,7 +1,5 @@
-"""Binary string detector — uses 'strings' command to extract printable strings from ELF/Mach-O files."""
+"""Binary string detector — `strings` when available, Python fallback otherwise."""
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 from scanner.detectors.base import CryptoFinding, rel_path
@@ -9,30 +7,20 @@ from scanner.detectors.base import CryptoFinding, rel_path
 BINARY_EXTENSIONS = {".so", ".dylib", ".elf", ".bin", ".exe", ".o", ".a"}
 
 BINARY_PATTERNS = [
-    (r'\b(RSA|AES|DES|3DES|RC4|MD5|SHA1|SHA256|ECDSA|ECDH)\b', "binary-crypto-string", 0.60),
-    (r'BEGIN (RSA |EC )?PRIVATE KEY', "binary-key-material", 0.80),
-    (r'TLSv1\.[01]', "binary-weak-tls", 0.75),
+    (r"\b(RSA|AES|DES|3DES|RC4|MD5|SHA1|SHA256|ECDSA|ECDH)\b", "binary-crypto-string", 0.60),
+    (r"BEGIN (RSA |EC )?PRIVATE KEY", "binary-key-material", 0.80),
+    (r"TLSv1\.[01]", "binary-weak-tls", 0.75),
 ]
 
 
 def detect_binary(root: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
-    strings_available = shutil.which("strings") is not None
-    if not strings_available:
-        return findings  # Graceful degradation — strings tool not available
-
     for path in root.rglob("*"):
         if path.suffix.lower() not in BINARY_EXTENSIONS or not path.is_file():
             continue
-        try:
-            result = subprocess.run(
-                ["strings", str(path)],
-                capture_output=True, text=True, timeout=10
-            )
-            output = result.stdout
-        except (subprocess.TimeoutExpired, OSError):
+        output = _extract_strings(path)
+        if not output:
             continue
-
         rel = rel_path(root, path)
         for pattern, method, confidence in BINARY_PATTERNS:
             for match in re.finditer(pattern, output, re.IGNORECASE):
@@ -50,12 +38,45 @@ def detect_binary(root: Path) -> list[CryptoFinding]:
                         raw_metadata={"source": "binary-strings"},
                     )
                 )
-    # Deduplicate by (file_path, algorithm)
-    seen = set()
+    seen: set[tuple] = set()
     deduped = []
     for f in findings:
-        key = (f.file_path, f.algorithm)
+        key = (f.file_path, f.algorithm, f.detection_method)
         if key not in seen:
             seen.add(key)
             deduped.append(f)
     return deduped
+
+
+def _extract_strings(path: Path) -> str:
+    try:
+        import shutil
+        import subprocess
+
+        if shutil.which("strings"):
+            result = subprocess.run(
+                ["strings", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0 and result.stdout:
+                return result.stdout
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return ""
+    chunks: list[str] = []
+    current = bytearray()
+    for b in data:
+        if 32 <= b < 127:
+            current.append(b)
+        else:
+            if len(current) >= 4:
+                chunks.append(current.decode("ascii", errors="ignore"))
+            current = bytearray()
+    if len(current) >= 4:
+        chunks.append(current.decode("ascii", errors="ignore"))
+    return "\n".join(chunks)

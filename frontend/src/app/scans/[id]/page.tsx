@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { Fragment, useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
 import RiskDistribution from "@/components/RiskDistribution";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { API_URL, apiFetch, getToken } from "@/lib/api";
-import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary, RiskBand } from "@/lib/types";
+import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
 
 type Tab = "overview" | "inventory" | "mosca" | "recommendations";
 
@@ -20,12 +25,13 @@ export default function ScanDetailPage() {
   const [mosca, setMosca] = useState<MoscaResult | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
 
-  // Interactive controls state
   const [moscaX, setMoscaX] = useState<number>(10);
   const [moscaY, setMoscaY] = useState<number>(4);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [riskFilter, setRiskFilter] = useState<string>("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [cbomValidation, setCbomValidation] = useState<{ valid: boolean; error_count?: number; schema?: string } | null>(null);
+  const [moscaSaving, setMoscaSaving] = useState(false);
 
   const loadCompletedData = useCallback(async () => {
     const [arts, moscaData, recData, summaryData] = await Promise.all([
@@ -38,6 +44,14 @@ export default function ScanDetailPage() {
     setMosca(moscaData);
     setRecs(recData.recommendations || []);
     setSummary(summaryData);
+    try {
+      const validation = await apiFetch<{ valid: boolean; error_count?: number; schema?: string }>(
+        `/api/v1/scans/${id}/reports/cbom/validate`
+      );
+      setCbomValidation(validation);
+    } catch {
+      setCbomValidation(null);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -61,6 +75,21 @@ export default function ScanDetailPage() {
     };
     load();
 
+    const poll = window.setInterval(async () => {
+      try {
+        const s = await apiFetch<Scan>(`/api/v1/scans/${id}`);
+        setScan(s);
+        if (s.data_lifetime_x !== undefined) setMoscaX(s.data_lifetime_x);
+        if (s.migration_time_y !== undefined) setMoscaY(s.migration_time_y);
+        if (s.status === "completed" || s.status === "failed") {
+          if (s.status === "completed") await loadCompletedData();
+          window.clearInterval(poll);
+        }
+      } catch {
+        /* keep last known scan */
+      }
+    }, 800);
+
     const wsUrl = `${API_URL.replace(/^http/, "ws")}/api/v1/scans/${id}/progress`;
     const ws = new WebSocket(wsUrl);
     ws.onmessage = (ev) => {
@@ -69,30 +98,75 @@ export default function ScanDetailPage() {
         setScan((prev) => (prev ? { ...prev, ...data } : prev));
         if (data.data_lifetime_x !== undefined) setMoscaX(data.data_lifetime_x);
         if (data.migration_time_y !== undefined) setMoscaY(data.migration_time_y);
-        if (data.status === "completed") loadCompletedData();
+        if (data.status === "completed") {
+          loadCompletedData();
+          window.clearInterval(poll);
+        }
+        if (data.status === "failed") window.clearInterval(poll);
       } catch (err) {
         console.error("WS error", err);
       }
     };
-    return () => ws.close();
+    ws.onerror = () => {
+      /* HTTP polling above is the fallback when Redis/WS is unavailable */
+    };
+    return () => {
+      window.clearInterval(poll);
+      ws.close();
+    };
   }, [id, router, loadCompletedData]);
 
-  async function exportCbom() {
-    const token = getToken();
-    const res = await fetch(`${API_URL}/api/v1/scans/${id}/cbom`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error("Export failed");
-    const json = await res.json();
-    const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `ecdat-cbom-${id}.json`;
-    a.click();
+  useEffect(() => {
+    if (!scan || scan.status !== "completed") return;
+    const handle = window.setTimeout(async () => {
+      try {
+        const live = await apiFetch<MoscaResult>(`/api/v1/scans/${id}/mosca?x=${moscaX}&y=${moscaY}`);
+        setMosca(live);
+      } catch {
+        /* keep last known mosca */
+      }
+    }, 220);
+    return () => window.clearTimeout(handle);
+  }, [id, moscaX, moscaY, scan?.status]);
+
+  async function saveMoscaBaseline() {
+    setMoscaSaving(true);
+    try {
+      const body = await apiFetch<{ ok: boolean; mosca: MoscaResult }>(`/api/v1/scans/${id}/context`, {
+        method: "PUT",
+        body: JSON.stringify({ data_lifetime_x: moscaX, migration_time_y: moscaY }),
+      });
+      if (body.mosca) setMosca(body.mosca);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Failed to save Mosca parameters");
+    } finally {
+      setMoscaSaving(false);
+    }
   }
 
-  // Filtered inventory artefacts
+  async function exportCbom() {
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_URL}/api/v1/scans/${id}/reports/cbom`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(detail || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ecdat-cbom-${id}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert(err instanceof Error ? `CBOM export failed: ${err.message}` : "CBOM export failed");
+    }
+  }
+
   const filteredArtefacts = useMemo(() => {
     return artefacts.filter((a) => {
       const matchesSearch =
@@ -106,7 +180,6 @@ export default function ScanDetailPage() {
     });
   }, [artefacts, searchTerm, riskFilter]);
 
-  // Client-side Mosca category recomputation
   const maxRisk = useMemo(() => {
     if (artefacts.length === 0) return 0;
     return Math.max(...artefacts.map((a) => a.risk.final_score ?? 0));
@@ -134,20 +207,21 @@ export default function ScanDetailPage() {
     });
   }, [mosca, moscaX, moscaY, maxRisk]);
 
+  const baselineClient = useMemo(
+    () => clientScenarios.find((s) => s.name === "Baseline") ?? clientScenarios[0],
+    [clientScenarios],
+  );
   const worstClientCategory = useMemo(() => {
     if (clientScenarios.length === 0) return "MONITOR";
     let worst = "MONITOR";
     for (const sc of clientScenarios) {
-      if (sc.category === "EXPIRED") {
-        worst = "EXPIRED";
-      } else if (sc.category === "URGENT" && worst !== "EXPIRED") {
-        worst = "URGENT";
-      } else if (sc.category === "PLAN" && worst === "MONITOR") {
-        worst = "PLAN";
-      }
+      if (sc.category === "EXPIRED") worst = "EXPIRED";
+      else if (sc.category === "URGENT" && worst !== "EXPIRED") worst = "URGENT";
+      else if (sc.category === "PLAN" && worst === "MONITOR") worst = "PLAN";
     }
     return worst;
   }, [clientScenarios]);
+  const headlineCategory = baselineClient?.category || worstClientCategory;
 
   if (!scan) {
     return <div className="loading-screen">Loading scan…</div>;
@@ -188,354 +262,402 @@ export default function ScanDetailPage() {
 
       {scan.current_stage && <p className="stage-text">{scan.current_stage}</p>}
 
-      <div className="tabs">
-        {(["overview", "inventory", "mosca", "recommendations"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={`tab ${tab === t ? "active" : ""}`}
-            onClick={() => setTab(t)}
-            style={{ textTransform: "capitalize" }}
-          >
-            {t === "inventory" ? "Artefacts" : t}
-          </button>
-        ))}
-        {scan.status === "completed" && (
-          <button type="button" className="btn secondary" onClick={exportCbom} style={{ marginLeft: "auto" }}>
-            Export CBOM
-          </button>
-        )}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-5">
+        <div className="flex flex-wrap items-end gap-3 border-b border-[var(--rule)]">
+          <TabsList variant="line" className="h-auto w-full flex-1 justify-start rounded-none bg-transparent p-0">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="inventory">Artefacts</TabsTrigger>
+            <TabsTrigger value="mosca">Mosca</TabsTrigger>
+            <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          </TabsList>
+          {scan.status === "completed" && (
+            <div className="tab-tools">
+              {cbomValidation && (
+                <span className={`status-badge ${cbomValidation.valid ? "completed" : "failed"}`} title={cbomValidation.schema || "CycloneDX 1.6"}>
+                  CBOM {cbomValidation.valid ? "VALID 1.6" : "INVALID"}
+                </span>
+              )}
+              <Button type="button" variant="outline" onClick={exportCbom}>
+                Export CBOM
+              </Button>
+            </div>
+          )}
+        </div>
 
-      {tab === "overview" && (
-        <div className="overview-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
-          <div className="card">
-            <h3>Scan Summary</h3>
-            <p>Target Type: <strong>{scan.target_type}</strong></p>
-            <p>Files scanned: <strong>{scan.total_files ?? "—"}</strong></p>
-            <p>Total artefacts: <strong>{scan.total_artefacts ?? 0}</strong></p>
-            <p>Critical risk: <strong>{scan.critical_risk_count ?? 0}</strong></p>
-            <p>High risk: <strong>{scan.high_risk_count ?? 0}</strong></p>
-            <p>Created: <strong>{scan.created_at ? new Date(scan.created_at).toLocaleString() : "—"}</strong></p>
-            {scan.error_message && (
-              <p className="error-text" style={{ color: "var(--danger)", marginTop: 15 }}>{scan.error_message}</p>
+        <TabsContent value="overview">
+          <div className="overview-grid">
+            <div className="card">
+              <h3>Scan summary</h3>
+              <div className="meta-list">
+                <p>Target type: <strong>{scan.target_type}</strong></p>
+                <p>Files scanned: <strong>{scan.total_files ?? "—"}</strong></p>
+                <p>Total artefacts: <strong>{scan.total_artefacts ?? 0}</strong></p>
+                {scan.status === "completed" && (scan.total_artefacts ?? 0) === 0 && (
+                  <p className="callout warn">
+                    The archive was unpacked ({scan.total_files ?? 0} files) but no crypto APIs, certificates,
+                    TLS configs, or binaries matched. Nested zip/jar members are now unpacked automatically.
+                    For the SIH demo use <code>scanner/corpus/archives/mixed-enterprise.zip</code>.
+                  </p>
+                )}
+                <p>Critical risk: <strong>{scan.critical_risk_count ?? 0}</strong></p>
+                <p>High risk: <strong>{scan.high_risk_count ?? 0}</strong></p>
+                <p>Created: <strong>{scan.created_at ? new Date(scan.created_at).toLocaleString() : "—"}</strong></p>
+                {summary?.layers_present && summary.layers_present.length > 0 && (
+                  <p>Detector layers: <strong>{summary.layers_present.join(" · ")}</strong></p>
+                )}
+                {cbomValidation && (
+                  <p>
+                    CycloneDX 1.6 schema:{" "}
+                    <strong className={cbomValidation.valid ? "action-ok" : "action-hot"}>
+                      {cbomValidation.valid ? "VALID" : `INVALID (${cbomValidation.error_count} errors)`}
+                    </strong>
+                  </p>
+                )}
+                {scan.error_message && (
+                  <p className="error-text">{scan.error_message}</p>
+                )}
+              </div>
+            </div>
+            {summary && scan.status === "completed" && (
+              <div className="card">
+                <RiskDistribution
+                  distribution={summary.risk_distribution}
+                  total={riskTotal}
+                />
+              </div>
             )}
           </div>
-          {summary && scan.status === "completed" && (
-            <div className="card">
-              <RiskDistribution
-                distribution={summary.risk_distribution}
-                total={riskTotal}
+        </TabsContent>
+
+        <TabsContent value="inventory">
+          <div className="card">
+            <div className="filter-bar">
+              <Input
+                type="text"
+                placeholder="Search by name, file path, action…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
+              <select
+                value={riskFilter}
+                onChange={(e) => setRiskFilter(e.target.value)}
+              >
+                <option value="ALL">All risks</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
             </div>
-          )}
-        </div>
-      )}
 
-      {tab === "inventory" && (
-        <div className="card">
-          <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-            <input
-              type="text"
-              placeholder="Search by name, file path, action..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                flex: "1",
-                minWidth: "200px",
-                padding: "8px 12px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)"
-              }}
-            />
-            <select
-              value={riskFilter}
-              onChange={(e) => setRiskFilter(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                minWidth: "120px"
-              }}
-            >
-              <option value="ALL">All Risks</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </div>
-
-          {filteredArtefacts.length === 0 ? (
-            <p className="empty-state">
-              {scan.status === "completed" ? "No matching artefacts found." : "Inventory available after scan completes."}
-            </p>
-          ) : (
-            <div className="table-wrap">
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                    <th style={{ padding: "12px 8px" }}>Name / Algorithm</th>
-                    <th style={{ padding: "12px 8px" }}>Asset Type</th>
-                    <th style={{ padding: "12px 8px" }}>Risk Band</th>
-                    <th style={{ padding: "12px 8px" }}>Location</th>
-                    <th style={{ padding: "12px 8px" }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredArtefacts.map((a) => {
-                    const isExpanded = expandedId === a.artefact_id;
-                    return (
-                      <>
-                        <tr
-                          key={a.artefact_id}
-                          onClick={() => setExpandedId(isExpanded ? null : a.artefact_id)}
-                          style={{
-                            borderBottom: "1px solid var(--border-subtle)",
-                            cursor: "pointer",
-                            background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent"
-                          }}
-                          className="table-row-hover"
-                        >
-                          <td style={{ padding: "12px 8px" }}>
-                            <div style={{ fontWeight: "bold" }}>{a.name}</div>
-                            {a.recommendation?.nist_standard && (
-                              <span style={{ fontSize: 11, color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: 4, marginRight: 6 }}>
-                                {a.recommendation.nist_standard}
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: "12px 8px", textTransform: "capitalize" }}>{a.asset_type}</td>
-                          <td style={{ padding: "12px 8px" }}>
-                            <span className={`badge ${a.risk.risk_band}`}>
-                              {a.risk.risk_band} ({a.risk.final_score})
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px 8px", fontSize: 13, color: "var(--text-muted)" }}>
-                            {a.file_path}
-                            {a.line_number ? `:${a.line_number}` : ""}
-                          </td>
-                          <td style={{ padding: "12px 8px" }}>
-                            {a.recommendation?.action ? (
-                              <span className={`status-badge ${
-                                a.recommendation.action.includes("Replacement") || a.recommendation.action.includes("Expired") ? "failed" :
-                                a.recommendation.action.includes("Migration") || a.recommendation.action.includes("Migrate") ? "running" :
-                                "completed"
-                              }`} style={{ fontSize: 11 }}>
-                                {a.recommendation.action}
-                              </span>
-                            ) : "—"}
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr key={`${a.artefact_id}-expanded`} style={{ background: "rgba(255,255,255,0.015)" }}>
-                            <td colSpan={5} style={{ padding: "16px", borderBottom: "1px solid var(--border)" }}>
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "12px" }}>
-                                <div>
-                                  <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>HNDL Risk Score</span>
-                                  <strong>{a.risk.hndl_risk ?? 0} / 10</strong>
-                                </div>
-                                <div>
-                                  <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>Operational Risk</span>
-                                  <strong>{a.risk.operational_risk ?? 0} / 10</strong>
-                                </div>
-                                <div>
-                                  <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>PQC Urgency</span>
-                                  <strong>{a.recommendation?.timeline_urgency ?? "MONITORING"}</strong>
-                                </div>
-                              </div>
-                              {a.recommendation?.rationale && (
-                                <p style={{ fontSize: 13, margin: "0 0 12px" }}>
-                                  <strong>Rationale:</strong> {a.recommendation.rationale}
-                                </p>
-                              )}
-                              {a.evidence_snippet && (
-                                <div>
-                                  <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Evidence Snippet</span>
-                                  <pre style={{
-                                    margin: 0,
-                                    padding: 10,
-                                    background: "var(--bg)",
-                                    border: "1px solid var(--border)",
-                                    borderRadius: 6,
-                                    overflowX: "auto",
-                                    fontSize: 12,
-                                    fontFamily: "Courier, monospace"
-                                  }}>{a.evidence_snippet}</pre>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "mosca" && (
-        <div className="card">
-          {!mosca ? (
-            <p className="empty-state">Mosca analysis available after scan completes.</p>
-          ) : (
-            <>
-              <h3>Mosca Theorem Risk Modeling</h3>
-              <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-                Mosca's Theorem states that data confidentiality is broken if migration time (Y) plus data lifetime (X) exceeds the CRQC collapse time (Z).
-                Interact with the sliders below to run real-time stress testing on different CRQC arrival scenarios.
+            {filteredArtefacts.length === 0 ? (
+              <p className="empty-state">
+                {scan.status === "completed"
+                  ? (scan.total_artefacts ?? 0) === 0
+                    ? `No cryptographic artefacts in ${scan.total_files ?? 0} files. Try mixed-enterprise.zip.`
+                    : "No matching artefacts found."
+                  : "Inventory available after scan completes."}
               </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, margin: "24px 0" }}>
-                <div style={{ background: "rgba(255,255,255,0.015)", padding: 16, border: "1px solid var(--border)", borderRadius: 8 }}>
-                  <label htmlFor="detail-x" style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span>Data Lifetime (X)</span>
-                    <strong>{moscaX} years</strong>
-                  </label>
-                  <input
-                    id="detail-x"
-                    type="range"
-                    min="1"
-                    max="30"
-                    step="1"
-                    value={moscaX}
-                    onChange={(e) => setMoscaX(parseInt(e.target.value))}
-                    style={{ width: "100%" }}
-                  />
-                  <span style={{ fontSize: 11, color: "var(--text-dim)", display: "block", marginTop: 4 }}>
-                    How long the scanned data must remain secure (e.g. classification period).
-                  </span>
-                </div>
-
-                <div style={{ background: "rgba(255,255,255,0.015)", padding: 16, border: "1px solid var(--border)", borderRadius: 8 }}>
-                  <label htmlFor="detail-y" style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span>Migration Time (Y)</span>
-                    <strong>{moscaY} years</strong>
-                  </label>
-                  <input
-                    id="detail-y"
-                    type="range"
-                    min="1"
-                    max="15"
-                    step="1"
-                    value={moscaY}
-                    onChange={(e) => setMoscaY(parseInt(e.target.value))}
-                    style={{ width: "100%" }}
-                  />
-                  <span style={{ fontSize: 11, color: "var(--text-dim)", display: "block", marginTop: 4 }}>
-                    How long it takes to re-engineer infrastructure and implement PQC.
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Total migration margin needed (X + Y)</span>
-                  <div style={{ fontSize: 22, fontWeight: "bold" }}>{moscaX + moscaY} years</div>
-                </div>
-                <div>
-                  <span style={{ fontSize: 13, color: "var(--text-muted)", display: "block", textAlign: "right" }}>Overall Urgency Category</span>
-                  <span className={`status-badge ${
-                    worstClientCategory === "EXPIRED" ? "failed" :
-                    worstClientCategory === "URGENT" ? "running" :
-                    worstClientCategory === "PLAN" ? "pending" :
-                    "completed"
-                  }`} style={{ fontSize: 16, padding: "6px 16px" }}>
-                    {worstClientCategory}
-                  </span>
-                </div>
-              </div>
-
-              <h4>Quantum Collapse Scenarios (Z)</h4>
+            ) : (
               <div className="table-wrap">
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table>
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                      <th style={{ padding: "12px 8px" }}>Scenario</th>
-                      <th style={{ padding: "12px 8px" }}>Est. Collapse Time (Z)</th>
-                      <th style={{ padding: "12px 8px" }}>Safety Margin (Z - [X+Y])</th>
-                      <th style={{ padding: "12px 8px" }}>Urgency Rating</th>
+                    <tr>
+                      <th>Name / Algorithm</th>
+                      <th>Asset type</th>
+                      <th>Risk band</th>
+                      <th>Location</th>
+                      <th>Detected by</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {clientScenarios.map((s) => (
-                      <tr key={s.name} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                        <td style={{ padding: "12px 8px", fontWeight: "bold" }}>{s.name}</td>
-                        <td style={{ padding: "12px 8px" }}>{s.z_value} years</td>
-                        <td style={{ padding: "12px 8px", color: s.margin < 0 ? "var(--danger)" : "var(--success)", fontWeight: "bold" }}>
-                          {s.margin < 0 ? `-${Math.abs(s.margin)} years (EXPIRED)` : `+${s.margin} years`}
-                        </td>
-                        <td style={{ padding: "12px 8px" }}>
-                          <span className={`status-badge ${
-                            s.category === "EXPIRED" ? "failed" :
-                            s.category === "URGENT" ? "running" :
-                            s.category === "PLAN" ? "pending" :
-                            "completed"
-                          }`}>
-                            {s.category}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredArtefacts.map((a) => {
+                      const isExpanded = expandedId === a.artefact_id;
+                      return (
+                        <Fragment key={a.artefact_id}>
+                          <tr
+                            className={isExpanded ? "is-open" : undefined}
+                            onClick={() => setExpandedId(isExpanded ? null : a.artefact_id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>
+                              <div style={{ fontWeight: 500 }}>{a.name}</div>
+                              {a.recommendation?.nist_standard && (
+                                <span className="nist-chip">{a.recommendation.nist_standard}</span>
+                              )}
+                            </td>
+                            <td style={{ textTransform: "capitalize" }}>{a.asset_type}</td>
+                            <td>
+                              <span className={`badge ${a.risk.risk_band}`}>
+                                {a.risk.risk_band} ({a.risk.final_score})
+                              </span>
+                            </td>
+                            <td>
+                              {a.file_path}
+                              {a.line_number ? `:${a.line_number}` : ""}
+                            </td>
+                            <td>
+                              <code>{a.detection_method || "—"}</code>
+                            </td>
+                            <td>
+                              {a.recommendation?.action ? (
+                                <span className={`status-badge ${
+                                  a.recommendation.action.includes("Replacement") || a.recommendation.action.includes("Expired") ? "failed" :
+                                  a.recommendation.action.includes("Migration") || a.recommendation.action.includes("Migrate") ? "running" :
+                                  "completed"
+                                }`}>
+                                  {a.recommendation.action}
+                                </span>
+                              ) : "—"}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={6}>
+                                <div className="expand-panel">
+                                  <div className="expand-grid">
+                                    <div>
+                                      <span>HNDL risk score</span>
+                                      <strong>{a.risk.hndl_risk ?? 0} / 10</strong>
+                                    </div>
+                                    <div>
+                                      <span>Operational risk</span>
+                                      <strong>{a.risk.operational_risk ?? 0} / 10</strong>
+                                    </div>
+                                    <div>
+                                      <span>PQC urgency</span>
+                                      <strong>{a.recommendation?.timeline_urgency ?? "MONITORING"}</strong>
+                                    </div>
+                                  </div>
+                                  {a.recommendation?.rationale && (
+                                    <p>
+                                      <strong>Rationale:</strong> {a.recommendation.rationale}
+                                    </p>
+                                  )}
+                                  {a.evidence_snippet && (
+                                    <div>
+                                      <span>Evidence snippet</span>
+                                      <pre>{a.evidence_snippet}</pre>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        </TabsContent>
 
-      {tab === "recommendations" && (
-        <div>
-          {recs.length === 0 ? (
-            <div className="card">
-              <p className="empty-state">
-                {scan.status === "completed" ? "No actionable recommendations generated." : "Recommendations available after scan completes."}
-              </p>
-            </div>
-          ) : (
-            <div className="recommendations-list" style={{ display: "grid", gap: "16px" }}>
-              {recs.map((r) => (
-                <div key={r.artefact_id} className="card" style={{ borderLeft: "4px solid var(--accent)", padding: "18px 24px", margin: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 16, fontWeight: "bold" }}>{r.name}</h4>
-                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Finding ID: {r.artefact_id}</span>
-                    </div>
-                    <span className={`status-badge ${r.effort === "Low" ? "completed" : r.effort === "Medium" ? "running" : "failed"}`}>
-                      Migration Effort: {r.effort}
+        <TabsContent value="mosca">
+          <div className="card">
+            {!mosca ? (
+              <p className="empty-state">Mosca analysis available after scan completes.</p>
+            ) : (
+              <>
+                <h3>Mosca theorem risk modeling</h3>
+                <p className="lede">
+                  Mosca&apos;s Theorem: data confidentiality is already expired if migration time (Y) plus data lifetime (X)
+                  exceeds CRQC collapse time (Z). Move the sliders — the engine recomputes live (EXPIRED ↔ URGENT ↔ PLAN).
+                </p>
+                {mosca.formula && (
+                  <p className="formula">{mosca.formula}</p>
+                )}
+                {mosca.transition?.changed && (
+                  <div
+                    className={`mosca-flip ${mosca.transition.improved ? "improved" : "worsened"}`}
+                    role="status"
+                  >
+                    Live decision: <strong>{mosca.transition.label}</strong>
+                    {mosca.interpretation ? ` — ${mosca.interpretation}` : ""}
+                  </div>
+                )}
+
+                <div className="mosca-controls">
+                  <div className="mosca-field">
+                    <Label htmlFor="detail-x">
+                      <span>Data lifetime (X)</span>
+                      <strong>{moscaX} years</strong>
+                    </Label>
+                    <Slider
+                      id="detail-x"
+                      min={1}
+                      max={30}
+                      step={1}
+                      value={[moscaX]}
+                      onValueChange={(v) => setMoscaX(v[0] ?? 10)}
+                    />
+                    <span className="mosca-hint">
+                      How long the scanned data must remain secure (e.g. classification period).
                     </span>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 12 }}>
+                  <div className="mosca-field">
+                    <Label htmlFor="detail-y">
+                      <span>Migration time (Y)</span>
+                      <strong>{moscaY} years</strong>
+                    </Label>
+                    <Slider
+                      id="detail-y"
+                      min={1}
+                      max={15}
+                      step={1}
+                      value={[moscaY]}
+                      onValueChange={(v) => setMoscaY(v[0] ?? 4)}
+                    />
+                    <span className="mosca-hint">
+                      How long it takes to re-engineer infrastructure and implement PQC.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mosca-summary">
+                  <div>
+                    <span className="label">Total migration margin needed (X + Y)</span>
+                    <div className="figure">{moscaX + moscaY} years</div>
+                  </div>
+                  <div>
+                    <span className="label" style={{ display: "block", textAlign: "right" }}>
+                      Baseline (Z=10y)
+                    </span>
+                    <span className={`status-badge ${
+                      headlineCategory === "EXPIRED" ? "failed" :
+                      headlineCategory === "URGENT" ? "running" :
+                      headlineCategory === "PLAN" ? "pending" :
+                      "completed"
+                    }`}>
+                      {headlineCategory}
+                    </span>
+                    <span className="mosca-hint" style={{ textAlign: "right" }}>
+                      Worst scenario: {worstClientCategory}
+                    </span>
+                  </div>
+                  <Button type="button" variant="outline" onClick={saveMoscaBaseline} disabled={moscaSaving}>
+                    {moscaSaving ? "Saving…" : "Save as scan baseline"}
+                  </Button>
+                </div>
+
+                <div className="mosca-timeline" aria-label="Mosca timeline versus CRQC scenarios">
+                  {(() => {
+                    const total = moscaX + moscaY;
+                    const zs = clientScenarios.map((s) => s.z_value);
+                    const maxZ = Math.max(total, ...zs, 1);
+                    return (
+                      <>
+                        <div className="mosca-timeline-bar">
+                          <div className="mosca-timeline-need" style={{ width: `${Math.min(100, (total / maxZ) * 100)}%` }} />
+                          {clientScenarios.map((s) => (
+                            <span
+                              key={s.name}
+                              className={`mosca-z ${s.category.toLowerCase()}`}
+                              style={{ left: `${(s.z_value / maxZ) * 100}%` }}
+                              title={`${s.name} Z=${s.z_value} ${s.category}`}
+                            />
+                          ))}
+                        </div>
+                        <div className="mosca-timeline-legend">
+                          <span>Need X+Y = {total}y</span>
+                          {clientScenarios.map((s) => (
+                            <span key={s.name}>{s.name} Z={s.z_value}y</span>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <h4>Quantum collapse scenarios (Z)</h4>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Scenario</th>
+                        <th>Est. collapse time (Z)</th>
+                        <th>Safety margin (Z − [X+Y])</th>
+                        <th>Urgency rating</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientScenarios.map((s) => (
+                        <tr key={s.name}>
+                          <td style={{ fontWeight: 500 }}>{s.name}</td>
+                          <td>{s.z_value} years</td>
+                          <td className={s.margin < 0 ? "action-hot" : "action-ok"} style={{ fontWeight: 500 }}>
+                            {s.margin < 0 ? `-${Math.abs(s.margin)} years (EXPIRED)` : `+${s.margin} years`}
+                          </td>
+                          <td>
+                            <span className={`status-badge ${
+                              s.category === "EXPIRED" ? "failed" :
+                              s.category === "URGENT" ? "running" :
+                              s.category === "PLAN" ? "pending" :
+                              "completed"
+                            }`}>
+                              {s.category}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="recommendations">
+          {recs.length === 0 ? (
+            <div className="card">
+              <p className="empty-state">
+                {scan.status === "completed"
+                  ? "No migration actions for this scan. AES/SHA-256-style Keep findings stay on Inventory. Re-run the scan after a mapping update to refresh this tab."
+                  : "Recommendations available after scan completes."}
+              </p>
+            </div>
+          ) : (
+            <div className="recommendations-list">
+              {recs.map((r) => (
+                <div key={r.artefact_id} className="rec-card">
+                  <div className="rec-head">
                     <div>
-                      <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>Recommended Action</span>
-                      <strong style={{
-                        color: r.action.includes("Replacement") || r.action.includes("Immediate") ? "var(--danger)" : "var(--warning)"
-                      }}>{r.action}</strong>
+                      <h4>{r.name}</h4>
+                      <span className="rec-id">Finding ID: {r.artefact_id}</span>
+                    </div>
+                    <span className={`status-badge ${r.effort === "Low" ? "completed" : r.effort === "Medium" ? "running" : "failed"}`}>
+                      Migration effort: {r.effort}
+                    </span>
+                  </div>
+
+                  <div className="rec-grid">
+                    <div>
+                      <span>Recommended action</span>
+                      <strong className={
+                        (r.action || "").includes("Replacement") || (r.action || "").includes("Immediate")
+                          ? "action-hot"
+                          : "action-warn"
+                      }>{r.action || "Review"}</strong>
                     </div>
                     {r.primary_pqc && (
                       <div>
-                        <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>Primary PQC Standard</span>
+                        <span>Primary PQC standard</span>
                         <strong>{r.primary_pqc} {r.nist_standard ? `(${r.nist_standard})` : ""}</strong>
                       </div>
                     )}
                     {r.hybrid_pair && (
                       <div>
-                        <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>Hybrid Cipher Suite</span>
+                        <span>Hybrid cipher suite</span>
                         <strong>{r.hybrid_pair}</strong>
                       </div>
                     )}
                     {r.timeline_urgency && (
                       <div>
-                        <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>Timeline Urgency</span>
+                        <span>Timeline urgency</span>
                         <span className={`status-badge ${r.timeline_urgency === "IMMEDIATE" ? "failed" : r.timeline_urgency === "PLANNED" ? "running" : "completed"}`}>
                           {r.timeline_urgency}
                         </span>
@@ -544,16 +666,16 @@ export default function ScanDetailPage() {
                   </div>
 
                   {r.rationale && (
-                    <div style={{ padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 6, fontSize: 13, border: "1px solid var(--border-subtle)" }}>
-                      <strong>Migration Rationale:</strong> {r.rationale}
+                    <div className="rec-rationale">
+                      <strong>Migration rationale:</strong> {r.rationale}
                     </div>
                   )}
                 </div>
               ))}
             </div>
           )}
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

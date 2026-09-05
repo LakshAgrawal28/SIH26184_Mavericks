@@ -11,7 +11,9 @@ export default function Nav({ title, children }: NavProps) {
     <header className="nav">
       <div className="nav-brand">
         <Link href="/dashboard" className="logo">
-          <span className="logo-mark">E</span>
+          <span className="logo-mark" aria-hidden>
+            E
+          </span>
           <span className="logo-text">ECDAT</span>
         </Link>
         <h1>{title}</h1>

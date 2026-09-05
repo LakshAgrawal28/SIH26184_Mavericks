@@ -32,6 +32,17 @@ def test_pqc_rsa_recommendation():
     assert hybrid == "X25519MLKEM768"
 
 
+def test_pqc_jwt_library_and_bcrypt():
+    action, primary, _, _, _, _, _ = recommend("jsonwebtoken@^9.0.3", "MEDIUM")
+    assert action == "Hybrid Migration"
+    assert primary == "ML-DSA-65"
+    hs_action, _, _, _, _, _, _ = recommend("jwt.sign", "LOW")
+    assert hs_action in ("Hybrid Migration", "Migrate")
+    harden, pqc, _, _, _, _, _ = recommend("bcrypt", "LOW")
+    assert harden == "Harden"
+    assert pqc == "Argon2id"
+
+
 class TestCertExpiry:
     def test_expired_cert(self):
         mult, label = compute_expiry_urgency(-5)

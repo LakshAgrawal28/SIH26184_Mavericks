@@ -1,5 +1,26 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const plexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-sans",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-plex-mono",
+});
+
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-newsreader",
+  adjustFontFallback: false,
+});
 
 export const metadata = {
   title: "ECDAT — Cryptographic Discovery",
@@ -8,16 +29,17 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={cn(plexSans.variable, plexMono.variable, newsreader.variable, "font-sans")}
+    >
+      <body>
+        <div className="app-strip">
+          <span>ECDAT // cryptographic discovery ledger</span>
+          <span>Official use · briefing copy</span>
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

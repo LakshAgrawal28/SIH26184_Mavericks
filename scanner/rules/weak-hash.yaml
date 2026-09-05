@@ -1,46 +1,57 @@
-# ECDAT Semgrep Rule — Weak Hash Functions
-# Reference: NIST IR 8547 (deprecating SHA-1, MD5 by 2030)
+# ECDAT Semgrep — Weak hashes (NIST IR 8547 deprecates MD5 / SHA-1)
 rules:
-  - id: python-weak-hash-md5
-    patterns:
-      - pattern: hashlib.md5(...)
-    message: "MD5 is cryptographically broken. Use SHA-256 or SHA-3."
+  - id: ecdat.python-md5
+    pattern: hashlib.md5(...)
+    message: MD5 is cryptographically broken. Replace with SHA-256 or SHA-3.
     languages: [python]
     severity: ERROR
     metadata:
       category: cryptography
+      algorithm: MD5
+      primitive: hash
       cwe: CWE-327
-      nist_standard: "NIST IR 8547"
-      pqc_action: "Immediate Replacement → SHA-256"
+      nist_standard: NIST IR 8547
+      ecdat_confidence: 0.97
 
-  - id: python-weak-hash-sha1
-    patterns:
-      - pattern: hashlib.sha1(...)
-    message: "SHA-1 is deprecated. Use SHA-256 or SHA-3."
+  - id: ecdat.python-sha1
+    pattern: hashlib.sha1(...)
+    message: SHA-1 is deprecated. Use SHA-256 or SHA-3.
     languages: [python]
     severity: WARNING
     metadata:
       category: cryptography
+      algorithm: SHA-1
+      primitive: hash
       cwe: CWE-327
-      nist_standard: "NIST IR 8547"
-      pqc_action: "Immediate Replacement → SHA-256"
+      nist_standard: NIST IR 8547
+      ecdat_confidence: 0.97
 
-  - id: java-weak-hash-md5
-    pattern: MessageDigest.getInstance("MD5")
-    message: "MD5 MessageDigest is cryptographically broken. Use SHA-256."
+  - id: ecdat.java-md5
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("md5")
+    message: MD5 MessageDigest is cryptographically broken. Use SHA-256.
     languages: [java]
     severity: ERROR
     metadata:
       category: cryptography
+      algorithm: MD5
+      primitive: hash
       cwe: CWE-327
-      nist_standard: "NIST IR 8547"
+      nist_standard: NIST IR 8547
+      ecdat_confidence: 0.97
 
-  - id: java-weak-hash-sha1
-    pattern: MessageDigest.getInstance("SHA-1")
-    message: "SHA-1 MessageDigest is deprecated for new uses. Use SHA-256."
+  - id: ecdat.java-sha1
+    pattern-either:
+      - pattern: MessageDigest.getInstance("SHA-1")
+      - pattern: MessageDigest.getInstance("SHA1")
+    message: SHA-1 MessageDigest is deprecated for new uses. Use SHA-256.
     languages: [java]
     severity: WARNING
     metadata:
       category: cryptography
+      algorithm: SHA-1
+      primitive: hash
       cwe: CWE-327
-      nist_standard: "NIST IR 8547"
+      nist_standard: NIST IR 8547
+      ecdat_confidence: 0.96
