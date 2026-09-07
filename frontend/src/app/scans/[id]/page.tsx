@@ -294,9 +294,14 @@ export default function ScanDetailPage() {
                 <p>Total artefacts: <strong>{scan.total_artefacts ?? 0}</strong></p>
                 {scan.status === "completed" && (scan.total_artefacts ?? 0) === 0 && (
                   <p className="callout warn">
-                    The archive was unpacked ({scan.total_files ?? 0} files) but no crypto APIs, certificates,
-                    TLS configs, or binaries matched. Nested zip/jar members are now unpacked automatically.
-                    For the SIH demo use <code>scanner/corpus/archives/mixed-enterprise.zip</code>.
+                    {scan.current_stage ||
+                      `Unpacked ${scan.total_files ?? 0} files but no crypto matched.`}
+                    {" "}The catalog covers JCA/JCE, hashlib, Node crypto, Go{" "}
+                    <code>crypto/*</code>, OpenSSL, .NET, PHP/Ruby hashing, X.509 certs, TLS
+                    configs, keystores (<code>.jks/.p12/.pfx</code>), and 40+ crypto package
+                    manifests/lockfiles. A true zero means this archive genuinely has no
+                    detectable crypto in first-party files — try{" "}
+                    <code>scanner/corpus/archives/mixed-enterprise.zip</code> to see a positive scan.
                   </p>
                 )}
                 <p>Critical risk: <strong>{scan.critical_risk_count ?? 0}</strong></p>

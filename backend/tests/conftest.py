@@ -39,8 +39,16 @@ def client(tmp_path, monkeypatch):
     db_session.engine = engine
     db_session.SessionLocal.configure(bind=engine)
 
-    from app.main import app
+    import app.main as main_module
+
+    # app.main is only imported once per pytest session; its module-level
+    # `engine` name was bound at that first import and does not follow later
+    # monkeypatches of db_session.engine. Keep it in sync per-test so every
+    # test gets its own tmp_path database, not just the first one collected.
+    main_module.engine = engine
+    db_session.Base.metadata.create_all(bind=engine)
+
     from fastapi.testclient import TestClient
 
-    with TestClient(app) as c:
+    with TestClient(main_module.app) as c:
         yield c

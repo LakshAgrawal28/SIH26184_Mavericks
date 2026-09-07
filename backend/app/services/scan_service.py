@@ -10,7 +10,13 @@ from app.engines.pqc_engine import recommend
 from app.engines.risk_engine import compute_risk
 from app.models import Artefact, Scan
 from app.services.storage import storage_service
-from scanner.detectors.pipeline import finding_to_bom_ref, run_all_detectors, safe_extract_zip, unpack_nested_archives
+from scanner.detectors.pipeline import (
+    coverage_stats,
+    finding_to_bom_ref,
+    run_all_detectors,
+    safe_extract_zip,
+    unpack_nested_archives,
+)
 
 _redis_client = None
 
@@ -66,8 +72,12 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         file_count = safe_extract_zip(zip_path, extract_path)
         file_count += unpack_nested_archives(extract_path)
         scan.total_files = file_count
+        stats = coverage_stats(extract_path)
 
-        scan.current_stage = "Running Semgrep rules + cert/config/binary detectors"
+        scan.current_stage = (
+            f"Scanning {stats['first_party_files']} first-party files "
+            f"({stats['skipped_vendor_files']} vendor files skipped)"
+        )
         scan.progress_percentage = 40
         db.commit()
         publish_progress(str(scan_id), {"status": "running", "progress_percentage": 40, "current_stage": scan.current_stage})
@@ -143,11 +153,15 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         scan.status = "completed"
         scan.progress_percentage = 100
         if findings:
-            scan.current_stage = f"Completed — {len(findings)} artefacts in {file_count} files"
+            scan.current_stage = (
+                f"Completed — {len(findings)} artefacts in {file_count} files "
+                f"({stats['first_party_files']} first-party)"
+            )
         else:
             scan.current_stage = (
-                f"Completed — no cryptographic artefacts in {file_count} files. "
-                "Upload mixed-enterprise.zip or a project that contains crypto APIs, certs, or TLS configs."
+                f"Completed — no crypto in {stats['first_party_files']} first-party files "
+                f"({file_count} unpacked, {stats['skipped_vendor_files']} vendor skipped). "
+                "Catalog covers JCA/JCE, hashlib, Node crypto, Go tls, OpenSSL, certs, lockfiles, keystores."
             )
         scan.completed_at = datetime.now(timezone.utc)
         db.commit()

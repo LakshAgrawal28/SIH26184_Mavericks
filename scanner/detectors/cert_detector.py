@@ -10,19 +10,47 @@ from scanner.detectors.base import CryptoFinding, iter_files, rel_path
 
 def detect_certificates(root: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
-    cert_ext = {".pem", ".crt", ".cer", ".der"}
+    # Real repos name certs server.cert, fullchain.pem, id_rsa — do not require an extension.
+    cert_ext = {".pem", ".crt", ".cer", ".der", ".cert", ".key", ".pub", ".cacert"}
 
     for file_path in iter_files(root):
-        if file_path.suffix.lower() not in cert_ext:
+        suffix = file_path.suffix.lower()
+        try:
+            size = file_path.stat().st_size
+            if size > 2_000_000:
+                continue
+            # Cheap sniff: only fully parse likely PEM/text.
+            head = file_path.read_bytes()[:8000]
+        except OSError:
+            continue
+
+        if b"BEGIN CERTIFICATE" not in head and b"BEGIN" not in head:
+            continue
+        if b"PRIVATE KEY" in head and b"BEGIN CERTIFICATE" not in head:
+            try:
+                text = file_path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            rel = rel_path(root, file_path)
+            findings.append(
+                CryptoFinding(
+                    name="Private Key Material",
+                    asset_type="related-crypto-material",
+                    algorithm="PRIVATE-KEY",
+                    primitive="related-crypto-material",
+                    file_path=rel,
+                    detection_method="pem-marker",
+                    confidence=0.94,
+                    evidence_snippet="PEM private key block",
+                )
+            )
+            continue
+        if b"BEGIN CERTIFICATE" not in head:
             continue
 
         try:
             text = file_path.read_text(encoding="utf-8", errors="ignore")
-            data = text.encode()
         except OSError:
-            continue
-
-        if "BEGIN CERTIFICATE" not in text:
             continue
 
         rel = rel_path(root, file_path)
@@ -92,10 +120,21 @@ def detect_certificates(root: Path) -> list[CryptoFinding]:
 
 def detect_configs(root: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
-    config_names = {"nginx.conf", "apache2.conf", "java.security", "openssl.cnf", "httpd.conf"}
+    config_names = {
+        "nginx.conf", "apache2.conf", "java.security", "openssl.cnf", "httpd.conf",
+        "dockerfile", "docker-compose.yml", "docker-compose.yaml", "caddyfile",
+        "application.properties", "application.yml", "application.yaml",
+    }
+    config_ext = {".conf", ".cnf", ".yml", ".yaml", ".properties", ".env", ".ini", ".tf"}
 
     for file_path in iter_files(root):
-        if file_path.name not in config_names and file_path.suffix not in {".conf"}:
+        name_l = file_path.name.lower()
+        if (
+            name_l not in config_names
+            and file_path.suffix.lower() not in config_ext
+            and not name_l.startswith("docker-compose")
+            and not name_l.startswith("application-")
+        ):
             continue
         try:
             text = file_path.read_text(encoding="utf-8", errors="ignore")

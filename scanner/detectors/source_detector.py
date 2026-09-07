@@ -2,9 +2,13 @@ import json
 import re
 from pathlib import Path
 
+from scanner.catalog.signatures import CRYPTO_PACKAGES
 from scanner.detectors.base import IGNORE_DIRS, CryptoFinding, iter_files, rel_path
 
-CODE_EXTENSIONS = {".py", ".java", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".c", ".cpp", ".h", ".cs", ".php", ".rb"}
+CODE_EXTENSIONS = {
+    ".py", ".java", ".kt", ".kts", ".scala", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs",
+    ".go", ".rs", ".c", ".cpp", ".h", ".cs", ".php", ".rb", ".swift",
+}
 
 PATTERNS = [
     (r'Cipher\.getInstance\s*\(\s*["\']([^"\']+)["\']', "java-jce", 0.95),
@@ -109,56 +113,62 @@ def detect_manifests(root: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
     manifest_map = {
         "package.json": "npm",
+        "package-lock.json": "npm",
+        "yarn.lock": "npm",
+        "pnpm-lock.yaml": "npm",
         "requirements.txt": "pypi",
+        "pyproject.toml": "pypi",
         "Pipfile": "pypi",
+        "poetry.lock": "pypi",
         "go.mod": "go",
+        "go.sum": "go",
         "Cargo.toml": "rust",
+        "Cargo.lock": "rust",
         "pom.xml": "maven",
+        "build.gradle": "maven",
+        "build.gradle.kts": "maven",
+        "Gemfile": "ruby",
+        "composer.json": "php",
     }
-    crypto_libs = [
-        ("openssl", "OpenSSL"),
-        ("bouncycastle", "BouncyCastle"),
-        ("cryptography", "pyca/cryptography"),
-        ("pycryptodome", "PyCryptodome"),
-        ("node-forge", "node-forge"),
-        ("jsonwebtoken", "jsonwebtoken"),
-        ("bcrypt", "bcrypt"),
-        ("libsodium", "libsodium"),
-        ("ring", "ring"),
-        ("rustls", "rustls"),
-        ("golang.org/x/crypto", "golang.org/x/crypto"),
-    ]
 
     for fname, ecosystem in manifest_map.items():
         for path in root.rglob(fname):
             if any(p in IGNORE_DIRS for p in path.parts):
                 continue
             try:
-                content = path.read_text(encoding="utf-8", errors="ignore").lower()
+                if path.stat().st_size > 4_000_000:
+                    continue
+                content = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
+            lowered = content.lower()
             rel = rel_path(root, path)
-            for needle, lib_name in crypto_libs:
-                if needle in content:
-                    findings.append(
-                        CryptoFinding(
-                            name=lib_name,
-                            asset_type="library",
-                            library_name=lib_name,
-                            file_path=rel,
-                            detection_method=f"manifest-{ecosystem}",
-                            confidence=0.92,
-                            evidence_snippet=f"{needle} referenced in {fname}",
-                            raw_metadata={"ecosystem": ecosystem},
-                        )
+            method = "package-json" if fname == "package.json" else f"manifest-{ecosystem}"
+            if fname.endswith(".lock") or fname.endswith("-lock.json") or fname.endswith("-lock.yaml"):
+                method = "manifest-lockfile"
+            for needle, lib_name in CRYPTO_PACKAGES:
+                if needle not in lowered:
+                    continue
+                findings.append(
+                    CryptoFinding(
+                        name=lib_name,
+                        asset_type="library",
+                        library_name=lib_name,
+                        file_path=rel,
+                        detection_method=method,
+                        confidence=0.9 if "lock" in fname else 0.92,
+                        evidence_snippet=f"{needle} referenced in {fname}",
+                        raw_metadata={"ecosystem": ecosystem, "needle": needle},
                     )
+                )
             if fname == "package.json":
                 try:
-                    data = json.loads(path.read_text(encoding="utf-8"))
+                    data = json.loads(content)
                     deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
                     for dep, version in deps.items():
-                        for needle, lib_name in crypto_libs:
-                            if needle in dep.lower():
+                        dep_l = dep.lower()
+                        for needle, lib_name in CRYPTO_PACKAGES:
+                            if needle in dep_l:
                                 findings.append(
                                     CryptoFinding(
                                         name=f"{lib_name}@{version}",

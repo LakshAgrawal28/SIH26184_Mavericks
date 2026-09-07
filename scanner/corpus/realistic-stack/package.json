@@ -1,0 +1,8 @@
+{
+  "name": "realistic-stack",
+  "dependencies": {
+    "jsonwebtoken": "9.0.2",
+    "bcryptjs": "2.4.3",
+    "crypto-js": "4.2.0"
+  }
+}

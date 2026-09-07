@@ -1,0 +1,6 @@
+server:
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-type: PKCS12
+    protocol: TLSv1.1

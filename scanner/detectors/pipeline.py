@@ -2,8 +2,9 @@ import hashlib
 import zipfile
 from pathlib import Path
 
-from scanner.detectors.base import CryptoFinding
+from scanner.detectors.base import IGNORE_DIRS, CryptoFinding
 from scanner.detectors.binary_detector import detect_binary
+from scanner.detectors.catalog_detector import detect_catalog
 from scanner.detectors.cert_detector import detect_certificates, detect_configs
 from scanner.detectors.semgrep_detector import detect_semgrep
 from scanner.detectors.source_detector import detect_manifests, detect_source
@@ -17,7 +18,10 @@ _METHOD_RANK = {
     "manifest-npm": 30,
     "manifest-pypi": 30,
     "manifest-go": 30,
+    "manifest-lockfile": 29,
+    "catalog-api": 32,
     "config-scanner": 28,
+    "filename-hint": 26,
     "binary-key-material": 22,
     "binary-weak-tls": 20,
     "binary-crypto-string": 18,
@@ -27,12 +31,31 @@ _METHOD_RANK = {
 def run_all_detectors(root: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
     findings.extend(detect_semgrep(root))
+    findings.extend(detect_catalog(root))
     findings.extend(detect_source(root))
     findings.extend(detect_manifests(root))
     findings.extend(detect_certificates(root))
     findings.extend(detect_configs(root))
     findings.extend(detect_binary(root))
     return normalize_findings(findings)
+
+
+def coverage_stats(root: Path) -> dict:
+    """First-party vs skipped (node_modules, venv, …) so empty scans are explainable."""
+    total = first_party = skipped = 0
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        total += 1
+        if set(path.parts) & IGNORE_DIRS:
+            skipped += 1
+        else:
+            first_party += 1
+    return {
+        "unpacked_files": total,
+        "first_party_files": first_party,
+        "skipped_vendor_files": skipped,
+    }
 
 
 def normalize_findings(findings: list[CryptoFinding]) -> list[CryptoFinding]:
@@ -66,7 +89,7 @@ def _family(algorithm: str) -> str:
     for token in (
         "ML-KEM", "ML-DSA", "SLH-DSA", "RSA", "ECDSA", "ECDH", "ED25519", "X25519",
         "AES", "SHA-256", "SHA-1", "SHA1", "MD5", "3DES", "DES", "RC4", "CHACHA20",
-        "TLS", "HS256", "RS256",
+        "TLS", "HS256", "RS256", "JWT", "HMAC", "X.509", "BCRYPT", "PBKDF2",
     ):
         if token in blob:
             return "SHA-1" if token in ("SHA-1", "SHA1") else token

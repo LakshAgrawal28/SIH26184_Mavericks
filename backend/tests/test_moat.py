@@ -8,11 +8,12 @@ from app.cbom.validator import validate_cbom
 from app.engines.mosca_engine import compute_mosca, describe_transition
 from app.models import Artefact, Scan
 from scanner.accuracy.measure import measure_corpus
-from scanner.detectors.pipeline import run_all_detectors
+from scanner.detectors.pipeline import coverage_stats, run_all_detectors
 from scanner.scripts.build_corpus_zips import prepare_mixed_enterprise
 
 ROOT = Path(__file__).resolve().parents[2]
 MIXED = ROOT / "scanner" / "corpus" / "mixed-enterprise"
+REALISTIC = ROOT / "scanner" / "corpus" / "realistic-stack"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -53,6 +54,45 @@ def test_mixed_enterprise_hits_all_layers():
     assert "TLS" in blob
     assert any(m.startswith("binary") for m in methods)
     assert any((m or "").startswith("semgrep") for m in methods)
+
+
+def test_realistic_multilanguage_repo_is_not_empty():
+    """Anti-regression for the 'random GitHub zip shows 0 artefacts' failure mode.
+
+    realistic-stack mimics an unlabelled real-world repo (Node + Python + Java +
+    Go + Spring YAML + lockfiles + a headless PEM + a nameless PKCS12 hint) with
+    none of the file names the old detectors special-cased (no CryptoService.java,
+    no nginx.conf). The catalog layer must still surface evidence-backed findings.
+    """
+    assert REALISTIC.exists()
+    findings = run_all_detectors(REALISTIC)
+    assert len(findings) >= 15, "catalog layer should catch far more than a handful of hardcoded strings"
+
+    methods = {f.detection_method for f in findings}
+    # Proof this isn't just one lucky regex: multiple independent layers fired.
+    assert "catalog-api" in methods
+    assert any(m.startswith("manifest") or m == "package-json" for m in methods)
+    assert "x509-parser" in methods or "pem-marker" in methods
+    assert "filename-hint" in methods
+
+    blob = " ".join(f"{f.algorithm} {f.name}" for f in findings).upper()
+    for expected in ("MD5", "JWT", "RS256", "TLS"):
+        assert expected in blob, f"missing {expected} in realistic-stack findings"
+
+    denylist = ["GOST", "CAMELLIA", "TWOFISH", "BLOWFISH", "SEED", "ARIA", "SM4", "KASUMI", "IDEA"]
+    assert not any(bad in blob for bad in denylist), "must never invent algorithms not present in source"
+
+
+def test_coverage_stats_explain_vendor_skips(tmp_path):
+    (tmp_path / "node_modules" / "leftpad").mkdir(parents=True)
+    (tmp_path / "node_modules" / "leftpad" / "index.js").write_text("module.exports = 1;")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("import hashlib\nhashlib.md5(b'x')\n")
+
+    stats = coverage_stats(tmp_path)
+    assert stats["unpacked_files"] == 2
+    assert stats["first_party_files"] == 1
+    assert stats["skipped_vendor_files"] == 1
 
 
 def test_nested_zip_is_unpacked(tmp_path):

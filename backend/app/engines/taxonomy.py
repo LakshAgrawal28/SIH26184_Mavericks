@@ -49,6 +49,17 @@ ALGORITHM_QV = {
     "TLS-1.0": 9.0,
     "TLS-1.1": 9.0,
     "TLS-INSECURESKIPVERIFY": 8.0,
+    "HMAC": 5.0,
+    "PBKDF2": 4.0,
+    "SCRYPT": 3.0,
+    "ARGON2": 2.0,
+    "WEBCRYPTO": 7.0,
+    "NODE-CRYPTO": 7.0,
+    "PRIVATE-KEY": 9.0,
+    "PKCS12": 8.0,
+    "JAVA-KEYSTORE": 8.0,
+    "X.509": 8.0,
+    "SSL": 8.0,
 }
 
 CLASSICAL_WEAKNESS = {
@@ -104,6 +115,15 @@ PQC_MAP = {
     "TLS-1.0": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Immediate Replacement"),
     "TLS-1.1": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Immediate Replacement"),
     "TLS-INSECURESKIPVERIFY": ("TLS 1.3 with verification", None, "Immediate Replacement"),
+    "HMAC": ("SHA-256", None, "Harden"),
+    "PBKDF2": ("Argon2id", None, "Harden"),
+    "SCRYPT": ("Argon2id", None, "Harden"),
+    "WEBCRYPTO": ("ML-KEM-768", "X25519MLKEM768", "Hybrid Migration"),
+    "NODE-CRYPTO": ("ML-KEM-768", "X25519MLKEM768", "Hybrid Migration"),
+    "PRIVATE-KEY": ("ML-DSA-65", None, "Migrate"),
+    "PKCS12": ("ML-DSA-65", None, "Migrate"),
+    "JAVA-KEYSTORE": ("ML-DSA-65", None, "Migrate"),
+    "X.509": ("ML-DSA-65", "RSA + ML-DSA-65", "Hybrid Migration"),
 }
 
 MOSCA_SCENARIOS = [

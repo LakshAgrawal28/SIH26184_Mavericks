@@ -19,6 +19,7 @@ CORPUS_DIRS = [
     "openssl-certs",
     "pqc-modern",
     "mixed-enterprise",
+    "realistic-stack",
 ]
 
 

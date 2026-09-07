@@ -202,6 +202,7 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
     layers = sorted(
         {
             "semgrep" if (m or "").startswith("semgrep") else
+            "catalog" if m in ("catalog-api", "filename-hint") else
             "certificate" if m in ("x509-parser", "pem-marker") else
             "binary" if (m or "").startswith("binary") else
             "config" if m == "config-scanner" else

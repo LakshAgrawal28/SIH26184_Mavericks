@@ -2,9 +2,16 @@
 import re
 from pathlib import Path
 
-from scanner.detectors.base import CryptoFinding, rel_path
+from scanner.detectors.base import IGNORE_DIRS, CryptoFinding, rel_path
 
-BINARY_EXTENSIONS = {".so", ".dylib", ".elf", ".bin", ".exe", ".o", ".a"}
+BINARY_EXTENSIONS = {
+    ".so", ".dylib", ".elf", ".bin", ".exe", ".o", ".a",
+    ".dll", ".class", ".pyc", ".wasm", ".sys", ".ko",
+}
+
+ELF_MAGIC = b"\x7fELF"
+PE_MAGIC = b"MZ"
+CLASS_MAGIC = b"\xca\xfe\xba\xbe"
 
 BINARY_PATTERNS = [
     (r"\b(RSA|AES|DES|3DES|RC4|MD5|SHA1|SHA256|ECDSA|ECDH)\b", "binary-crypto-string", 0.60),
@@ -13,10 +20,27 @@ BINARY_PATTERNS = [
 ]
 
 
+def _looks_binary(path: Path) -> bool:
+    suffix = path.suffix.lower()
+    if suffix in BINARY_EXTENSIONS:
+        return True
+    if suffix:
+        return False
+    try:
+        head = path.read_bytes()[:8]
+    except OSError:
+        return False
+    return head.startswith(ELF_MAGIC) or head.startswith(PE_MAGIC) or head.startswith(CLASS_MAGIC)
+
+
 def detect_binary(root: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
     for path in root.rglob("*"):
-        if path.suffix.lower() not in BINARY_EXTENSIONS or not path.is_file():
+        if not path.is_file() or not _looks_binary(path):
+            continue
+        if set(path.parts) & IGNORE_DIRS:
+            continue
+        if path.stat().st_size > 8_000_000:
             continue
         output = _extract_strings(path)
         if not output:

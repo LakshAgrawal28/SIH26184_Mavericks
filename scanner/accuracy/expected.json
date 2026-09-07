@@ -61,6 +61,17 @@
         {"family": "TLS"},
         {"detection_method_prefix": "binary"}
       ]
+    },
+    "realistic-stack": {
+      "required": [
+        {"family": "MD5", "file_substr": "api.py"},
+        {"family": "JWT", "file_substr": "api.py"},
+        {"family": "RS256", "file_substr": "server.js"},
+        {"family": "TLS", "file_substr": "TlsBoot.java"},
+        {"asset_type": "certificate"},
+        {"family": "jsonwebtoken"},
+        {"detection_method_prefix": "filename"}
+      ]
     }
   }
 }

@@ -36,9 +36,11 @@ Published in `docs/ACCURACY.md` and `GET /api/v1/accuracy`.
 | Recall of labelled families | **1.00** on the corpus |
 | Invented algorithms | **0** (no GOST/Camellia/Twofish unless present) |
 | Determinism | two runs → same finding keys |
-| Layers | Semgrep + X.509 + config + binary strings |
+| Layers | Semgrep + catalog (10+ language APIs/configs/packages) + X.509 + config + binary strings |
+| Fixtures evaluated | **9**, incl. `realistic-stack` — an unlabelled multi-language repo used to prove empty scans don't happen on normal projects |
 
 Fixtures: `scanner/corpus/` · expected: `scanner/accuracy/expected.json`.
+Current published run: **23/23 required checks, 0 invented, deterministic**.
 
 Judge line:  
 *“We measure recall and invention on a labelled mixed-enterprise fixture. The scanner is a function, not a chatbot.”*
