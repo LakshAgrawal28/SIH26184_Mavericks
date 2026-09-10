@@ -1,11 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+type ApiStatus = "checking" | "online" | "offline";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +15,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function ping() {
+      try {
+        const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(90000) });
+        if (!cancelled) setApiStatus(res.ok ? "online" : "offline");
+      } catch {
+        if (!cancelled) setApiStatus("offline");
+      }
+    }
+    ping();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -23,13 +42,26 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        signal: AbortSignal.timeout(90000),
       });
-      if (!res.ok) throw new Error("Invalid credentials or API unavailable");
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Invalid email or password.");
+        }
+        throw new Error(`API error (${res.status}). Try again in a moment.`);
+      }
       const data = (await res.json()) as { access_token: string };
       localStorage.setItem("ecdat_token", data.access_token);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (err instanceof TypeError || (err instanceof Error && err.name === "TimeoutError")) {
+        setError(
+          "Cannot reach the API. The Render backend may be waking up — wait 30–60 seconds and try again."
+        );
+        setApiStatus("offline");
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -71,6 +103,26 @@ export default function LoginPage() {
             <h2 className="text-xl font-semibold text-zinc-900">Sign in</h2>
             <p className="mt-1 text-sm text-zinc-500">Enter your operator credentials</p>
 
+            <div className="mt-4 flex items-center gap-2 text-xs">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  apiStatus === "online"
+                    ? "bg-emerald-500"
+                    : apiStatus === "offline"
+                      ? "bg-red-500"
+                      : "bg-amber-400"
+                }`}
+              />
+              <span className="text-zinc-500">
+                API{" "}
+                {apiStatus === "checking"
+                  ? "connecting…"
+                  : apiStatus === "online"
+                    ? "connected"
+                    : "unreachable — backend may be waking up"}
+              </span>
+            </div>
+
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <div>
                 <Label htmlFor="email" className="text-zinc-700">Email</Label>
@@ -101,6 +153,10 @@ export default function LoginPage() {
                 {loading ? "Signing in…" : "Sign in"}
               </Button>
             </form>
+
+            <p className="mt-4 text-center text-[11px] text-zinc-400">
+              Backend: {API_URL}
+            </p>
           </div>
         </div>
       </section>
