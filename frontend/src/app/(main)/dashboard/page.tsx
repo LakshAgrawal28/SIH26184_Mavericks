@@ -10,26 +10,8 @@ import StatusBadge from "@/components/StatusBadge";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
 import { apiFetch, getToken } from "@/lib/api";
+import { corpusDemoHref, QUICK_START_CORPUS } from "@/lib/corpus";
 import type { Scan } from "@/lib/types";
-
-const QUICK_START = [
-  {
-    name: "mixed-enterprise.zip",
-    description: "Java RSA, nginx TLS 1.0, expiring cert, native library",
-  },
-  {
-    name: "java-rsa-aes.zip",
-    description: "Classic JCA RSA/ECB patterns in Java source",
-  },
-  {
-    name: "python-crypto.zip",
-    description: "hashlib and legacy Python crypto usage",
-  },
-  {
-    name: "weak-configs.zip",
-    description: "TLS and nginx configuration weaknesses",
-  },
-];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -189,17 +171,22 @@ export default function DashboardPage() {
           Bundled demo archives from <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">scanner/corpus/archives/</code>
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {QUICK_START.map((item) => (
+          {QUICK_START_CORPUS.map((item) => (
             <div
-              key={item.name}
+              key={item.file}
               className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-zinc-900">{item.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-zinc-900">{item.file}</p>
+                  <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700">
+                    {item.tag}
+                  </span>
+                </div>
                 <p className="mt-0.5 text-xs text-zinc-500">{item.description}</p>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/scans/new">Upload</Link>
+                <Link href={corpusDemoHref(item.file)}>Try demo</Link>
               </Button>
             </div>
           ))}
