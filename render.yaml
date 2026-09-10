@@ -1,0 +1,37 @@
+# Render Blueprint — ECDAT (main branch)
+# https://dashboard.render.com/blueprints
+
+services:
+  - type: web
+    name: ecdat-api
+    runtime: python
+    branch: main
+    plan: free
+    region: oregon
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && PYTHONPATH=.:.. uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./ecdat_prod.db
+      - key: SYNC_SCAN
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+        value: https://ecdat-frontend.onrender.com,http://localhost:3000
+
+  - type: web
+    name: ecdat-frontend
+    runtime: node
+    branch: main
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+        value: https://ecdat-api-iqgx.onrender.com

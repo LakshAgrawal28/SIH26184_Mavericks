@@ -24,7 +24,7 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error("Login failed — check credentials and API connection");
+      if (!res.ok) throw new Error("Invalid credentials or API unavailable");
       const data = (await res.json()) as { access_token: string };
       localStorage.setItem("ecdat_token", data.access_token);
       router.push("/dashboard");
@@ -36,55 +36,72 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-split">
-      <section className="login-panel">
-        <p className="eyebrow">Enterprise cryptographic discovery</p>
-        <h1>Inventory the estate. Brief the risk.</h1>
-        <p>
-          ECDAT maps algorithms, certificates, TLS posture, and binaries into a
-          CycloneDX CBOM — then scores harvest-now, decrypt-later exposure against Mosca&apos;s theorem.
-        </p>
-        <dl className="login-meta">
-          <div>
-            <dt>Classification</dt>
-            <dd>Internal briefing copy</dd>
+    <div className="flex min-h-screen">
+      <section className="hidden flex-1 flex-col justify-between bg-white p-12 lg:flex">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">
+            E
           </div>
-          <div>
-            <dt>Default operator</dt>
-            <dd>admin@example.com</dd>
-          </div>
-        </dl>
+          <span className="text-lg font-semibold text-zinc-900">ECDAT</span>
+        </div>
+        <div className="max-w-md">
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
+            Cryptographic discovery for the post-quantum era
+          </h1>
+          <p className="mt-4 text-zinc-500">
+            Inventory algorithms, certificates, and TLS posture. Export CycloneDX CBOMs
+            and assess harvest-now, decrypt-later risk with Mosca&apos;s theorem.
+          </p>
+        </div>
+        <p className="text-xs text-zinc-400">Enterprise Cryptographic Discovery &amp; Analysis Tool</p>
       </section>
-      <section className="login-form-col">
-        <div className="card" style={{ width: "100%", maxWidth: 380, margin: 0, border: "none", padding: 0, background: "transparent" }}>
-          <p className="eyebrow">Sign in</p>
-          <h2>Operator access</h2>
-          <form onSubmit={onSubmit}>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              required
-              autoComplete="email"
-              className="mb-4"
-            />
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              required
-              autoComplete="current-password"
-              className="mb-4"
-            />
-            {error && <p className="error-text">{error}</p>}
-            <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
-          </form>
+
+      <section className="flex flex-1 items-center justify-center bg-zinc-50 px-6 py-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 lg:hidden">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">
+                E
+              </div>
+              <span className="text-lg font-semibold text-zinc-900">ECDAT</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <h2 className="text-xl font-semibold text-zinc-900">Sign in</h2>
+            <p className="mt-1 text-sm text-zinc-500">Enter your operator credentials</p>
+
+            <form onSubmit={onSubmit} className="mt-6 space-y-4">
+              <div>
+                <Label htmlFor="email" className="text-zinc-700">Email</Label>
+                <Input
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  required
+                  autoComplete="email"
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password" className="text-zinc-700">Password</Label>
+                <Input
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  className="mt-1.5"
+                />
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Button className="w-full" type="submit" disabled={loading}>
+                {loading ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+          </div>
         </div>
       </section>
     </div>
