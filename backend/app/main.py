@@ -7,11 +7,13 @@ from sqlalchemy import text
 from app.api.v1 import auth, meta, reports, scans
 from app.config import settings
 from app.core.security import ensure_default_admin
+from app.corpus_bootstrap import ensure_quick_start_archives
 from app.db.session import Base, SessionLocal, engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    ensure_quick_start_archives()
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
