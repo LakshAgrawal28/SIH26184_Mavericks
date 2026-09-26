@@ -34,6 +34,8 @@
 
 @layer base {
   :root {
+    --font-grotesk: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-plex-mono: "IBM Plex Mono", ui-monospace, monospace;
     --background: #ffffff;
     --surface: #f7f7f5;
     --foreground: #14161c;
