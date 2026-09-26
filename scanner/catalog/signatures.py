@@ -31,7 +31,10 @@ API_SIGNATURES: list[tuple[str, str | None, str, str, float]] = [
     (r'rsa\.generate_private_key|RSA\.generate|load_pem_private_key', "RSA", "pke", "algorithm", 0.9),
     (r'algorithms\.AES|AES\.new\s*\(|modes\.(CBC|GCM|ECB)', "AES", "block-cipher", "algorithm", 0.9),
     (r'from Cryptodome|from Crypto\.|import cryptography|hazmat\.primitives', "pyca/cryptography", "library", "library", 0.86),
-    (r'jwt\.(encode|decode|sign)|PyJWT', "JWT", "signature", "algorithm", 0.88),
+    (r'jwt\.(?:encode|decode|sign)|PyJWT', "JWT", "signature", "algorithm", 0.88),
+    (r"algorithms:\s*\[\s*['\"](HS256|RS256|ES256|PS256)['\"]", None, "signature", "algorithm", 0.94),
+    (r"jwt\.sign\s*\([^)]*algorithm:\s*['\"](HS256|HS384|HS512|RS256|RS384|RS512|ES256|ES384|ES512|PS256|PS384|PS512)['\"]", None, "signature", "algorithm", 0.95),
+    (r"algorithm\s*=\s*['\"](HS256|HS384|HS512|RS256|RS384|RS512|ES256|ES384|ES512|PS256|PS384|PS512)['\"]", None, "signature", "algorithm", 0.94),
     (r'bcrypt\.(hashpw|gensalt)|argon2', "BCRYPT", "kdf", "algorithm", 0.85),
     (r'paramiko|nacl\.|PyNaCl|cryptography\.fernet', "lib", "library", "library", 0.8),
     # Node / Web Crypto
@@ -72,8 +75,13 @@ API_SIGNATURES: list[tuple[str, str | None, str, str, float]] = [
     (r'TLSv1\.[01]\b|TLS 1\.0|TLS 1\.1|SSLv[23]', "TLS-1.0", "protocol", "protocol", 0.9),
 ]
 
+SSL_CIPHERS_RE = r"ssl_ciphers\s+([^;]+)"
+SSL_PROTOCOLS_RE = r"ssl_protocols\s+([^;]+)"
+
 CONFIG_SIGNATURES: list[tuple[str, str, str, str, float]] = [
-    (r'ssl_protocols|ssl_ciphers|ssl_certificate', "TLS", "protocol", "protocol", 0.9),
+    (SSL_CIPHERS_RE, "TLS", "protocol", "protocol", 0.92),
+    (SSL_PROTOCOLS_RE, "TLS", "protocol", "protocol", 0.92),
+    (r'ssl_certificate', "TLS", "protocol", "protocol", 0.9),
     (r'server\.ssl\.|ssl\.key-store|keystore\.jks', "TLS", "protocol", "protocol", 0.88),
     (r'min_tls_version|minProtocolVersion|tls_min_version', "TLS", "protocol", "protocol", 0.86),
     (r'NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*0', "TLS-InsecureSkipVerify", "protocol", "protocol", 0.95),
@@ -178,8 +186,13 @@ ALGO_NORMALIZE = {
     "hs256": "HS256",
     "rs256": "RS256",
     "es256": "ES256",
+    "ps256": "PS256",
     "hs384": "HS384",
     "hs512": "HS512",
+    "rs384": "RS384",
+    "rs512": "RS512",
+    "es384": "ES384",
+    "es512": "ES512",
     "digest::md5": "MD5",
     "digest::sha1": "SHA-1",
     "digest::sha256": "SHA-256",

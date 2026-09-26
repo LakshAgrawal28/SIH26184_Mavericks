@@ -3,8 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -23,33 +23,40 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 0.875rem;
-  --radius-xl: 1rem;
+  --color-surface: var(--surface);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent-soft: var(--accent-soft);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
 }
 
 @layer base {
   :root {
-    --background: #fafafa;
-    --foreground: #18181b;
+    --background: #ffffff;
+    --surface: #f7f7f5;
+    --foreground: #14161c;
+    --ink-muted: #5c5e66;
+    --accent-soft: #eef3fa;
     --card: #ffffff;
-    --card-foreground: #18181b;
+    --card-foreground: #14161c;
     --popover: #ffffff;
-    --popover-foreground: #18181b;
-    --primary: #4f46e5;
+    --popover-foreground: #14161c;
+    --primary: #1b4b8c;
     --primary-foreground: #ffffff;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #18181b;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --accent: #eef2ff;
-    --accent-foreground: #4338ca;
-    --destructive: #ef4444;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #4f46e5;
-    --radius: 0.75rem;
+    --secondary: #f7f7f5;
+    --secondary-foreground: #14161c;
+    --muted: #f7f7f5;
+    --muted-foreground: #5c5e66;
+    --accent: #f7f7f5;
+    --accent-foreground: #1b4b8c;
+    --destructive: #b3261e;
+    --border: #d8d9dc;
+    --input: #d8d9dc;
+    --ring: #1b4b8c;
+    --radius: 0;
+    --ease-premium: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   * {
@@ -59,6 +66,7 @@
   html {
     color-scheme: light;
     font-family: var(--font-sans);
+    scroll-behavior: smooth;
   }
 
   body {
@@ -68,13 +76,107 @@
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
+
+  code,
+  pre,
+  .font-data {
+    font-family: var(--font-mono);
+  }
+
+  a {
+    transition: color 200ms var(--ease-premium);
+  }
 }
 
 [data-slot="button"] {
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 200ms var(--ease-premium),
+    border-color 200ms var(--ease-premium),
+    color 200ms var(--ease-premium),
+    opacity 200ms var(--ease-premium);
 }
 
 [data-slot="input"],
 [data-slot="slider-thumb"] {
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 200ms var(--ease-premium),
+    background-color 200ms var(--ease-premium);
+}
+
+.panel {
+  border: 1px solid var(--border);
+  background: var(--card);
+  transition: border-color 200ms var(--ease-premium), background-color 200ms var(--ease-premium);
+}
+
+.panel-muted {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: border-color 200ms var(--ease-premium), background-color 200ms var(--ease-premium);
+}
+
+.panel-elevated {
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(20, 22, 28, 0.04);
+  transition: border-color 200ms var(--ease-premium);
+}
+
+.panel-interactive {
+  border: 1px solid var(--border);
+  background: var(--card);
+  transition:
+    border-color 200ms var(--ease-premium),
+    background-color 200ms var(--ease-premium),
+    transform 200ms var(--ease-premium);
+}
+
+.panel-interactive:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--card));
+}
+
+@keyframes ecdat-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.motion-enter {
+  animation: ecdat-enter 0.5s var(--ease-premium) both;
+}
+
+.motion-enter-delay-1 {
+  animation-delay: 80ms;
+}
+
+.motion-enter-delay-2 {
+  animation-delay: 140ms;
+}
+
+.motion-enter-delay-3 {
+  animation-delay: 200ms;
+}
+
+.motion-enter-delay-4 {
+  animation-delay: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-enter,
+  .motion-enter-delay-1,
+  .motion-enter-delay-2,
+  .motion-enter-delay-3,
+  .motion-enter-delay-4 {
+    animation: none;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }

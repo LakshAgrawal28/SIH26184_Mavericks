@@ -1,3 +1,4 @@
+import AnimatedCount from "@/components/AnimatedCount";
 import { cn } from "@/lib/utils";
 
 type StatCardProps = {
@@ -7,28 +8,19 @@ type StatCardProps = {
 };
 
 export default function StatCard({ label, value, dot = "default" }: StatCardProps) {
+  const numeric = typeof value === "number";
+
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2">
-        {dot !== "default" && (
-          <span
-            className={cn(
-              "h-2 w-2 rounded-full",
-              dot === "critical" && "bg-red-500",
-              dot === "high" && "bg-orange-500"
-            )}
-          />
-        )}
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      </div>
+    <div className="panel-interactive px-5 py-4">
+      <p className="text-xs font-medium text-ink-muted">{label}</p>
       <p
         className={cn(
-          "mt-2 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900",
-          dot === "critical" && "text-red-600",
-          dot === "high" && "text-orange-600"
+          "mt-2 text-3xl font-semibold tabular-nums tracking-tight text-foreground",
+          dot === "critical" && "text-[#B3261E]",
+          dot === "high" && "text-[#B8781F]"
         )}
       >
-        {value}
+        {numeric ? <AnimatedCount value={value} /> : value}
       </p>
     </div>
   );

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { mainNav } from "@/lib/navigation";
 import { getToken } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { IconLogoMark } from "@/components/icons/NavIcons";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,30 +17,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50">
-      <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-[1160px] items-center px-4 sm:px-6 lg:px-8">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">
-              E
-            </div>
+    <div className="flex min-h-screen bg-surface">
+      <aside
+        className="hidden w-[232px] shrink-0 flex-col border-r border-border bg-background md:flex"
+        aria-label="Primary"
+      >
+        <div className="border-b border-border px-4 py-4">
+          <Link href="/dashboard" className="flex items-center gap-3 text-foreground transition-opacity duration-200 hover:opacity-90">
+            <IconLogoMark className="text-primary" />
             <div>
-              <p className="text-sm font-semibold leading-none text-zinc-900">ECDAT</p>
-              <p className="mt-0.5 text-[11px] leading-none text-zinc-500">Crypto discovery</p>
+              <p className="text-sm font-semibold leading-tight">ECDAT</p>
+              <p className="text-[11px] leading-tight text-ink-muted">Crypto discovery</p>
             </div>
           </Link>
         </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[1160px] flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8">
-        {children}
-      </main>
-
-      <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur-sm"
-        aria-label="Main navigation"
-      >
-        <div className="mx-auto flex max-w-[1160px]">
+        <nav className="flex flex-1 flex-col gap-0 px-2 py-3">
           {mainNav.map((item) => {
             const active = item.match ? item.match(pathname) : pathname === item.href;
             const Icon = item.icon;
@@ -48,21 +40,59 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors duration-150 sm:py-3 sm:text-xs",
-                  active ? "text-indigo-600" : "text-zinc-500 hover:text-zinc-700"
+                  "flex items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-out",
+                  active
+                    ? "border-primary bg-accent-soft text-primary"
+                    : "border-transparent text-ink-muted hover:border-border hover:bg-surface hover:text-foreground"
                 )}
               >
-                {active && (
-                  <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-indigo-600 sm:inset-x-6" />
-                )}
-                <Icon className={cn("h-5 w-5 sm:h-[22px] sm:w-[22px]", active && "stroke-[2.25]")} />
+                <Icon className="shrink-0" />
                 {item.label}
               </Link>
             );
           })}
-        </div>
-        <div className="h-[env(safe-area-inset-bottom)]" />
-      </nav>
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-12 items-center border-b border-border bg-background px-4 md:hidden">
+          <Link href="/dashboard" className="flex items-center gap-2 text-foreground">
+            <IconLogoMark className="h-7 w-7 text-[#1B4B8C]" />
+            <span className="text-sm font-semibold">ECDAT</span>
+          </Link>
+        </header>
+
+        <main className="mx-auto w-full max-w-[1080px] flex-1 bg-background px-4 py-6 pb-20 md:px-8 md:pb-8 md:shadow-[inset_1px_0_0_var(--border)]">
+          {children}
+        </main>
+
+        <nav
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+          aria-label="Main navigation"
+        >
+          <div className="flex">
+            {mainNav.map((item) => {
+              const active = item.match ? item.match(pathname) : pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex flex-1 flex-col items-center gap-1 border-t-2 py-2 text-[10px] font-medium",
+                    active
+                      ? "border-primary text-primary"
+                      : "border-transparent text-ink-muted"
+                  )}
+                >
+                  <Icon />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
     </div>
   );
 }

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, ScanSearch } from "lucide-react";
+import CipherScramble from "@/components/CipherScramble";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
+import { IconEmptyScans } from "@/components/icons/NavIcons";
 import { apiFetch, getToken } from "@/lib/api";
 import { corpusDemoHref, QUICK_START_CORPUS } from "@/lib/corpus";
 import type { Scan } from "@/lib/types";
@@ -54,42 +55,104 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description="Overview of cryptographic discovery scans and risk posture."
-        actions={
-          <Button asChild>
-            <Link href="/scans/new">
-              <Plus className="h-4 w-4" />
-              New scan
-            </Link>
-          </Button>
-        }
-      />
+      <section className="mb-6 border-b border-border pb-6">
+        <CipherScramble
+          className="font-mono text-sm text-foreground md:text-base"
+        />
+        <p className="mt-2 max-w-[65ch] text-sm text-ink-muted">
+          Live posture from completed discovery scans — Shor vs Grover vs hygiene, HSM/cloud, and quantum risk bands.
+        </p>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total scans" value={totalScans} />
         <StatCard label="Total artefacts" value={totalArtefacts} />
         <StatCard label="Critical risk" value={totalCritical} dot="critical" />
         <StatCard label="High risk" value={totalHigh} dot="high" />
       </div>
 
+      <PageHeader
+        className="mt-8"
+        title="Recent scans"
+        actions={
+          <Button asChild>
+            <Link href="/scans/new">New scan</Link>
+          </Button>
+        }
+      />
+
+      <div className="panel">
+        {loading ? (
+          <div className="p-5">
+            <TableSkeleton rows={3} />
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="px-6 py-12 text-left">
+            <IconEmptyScans className="text-ink-muted" />
+            <p className="mt-4 text-sm font-medium text-foreground">No scans yet</p>
+            <p className="mt-1 max-w-md text-sm text-ink-muted">
+              Upload an archive to discover cryptographic assets and export a CBOM.
+            </p>
+            <Button asChild className="mt-5">
+              <Link href="/scans/new">Upload archive</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Name</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Status</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Artefacts</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Critical</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">High</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((s) => (
+                  <tr key={s.scan_id} className="border-b border-border last:border-0">
+                    <td className="px-5 py-3.5 font-medium text-foreground">{s.name}</td>
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={s.status} />
+                    </td>
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-ink-muted">
+                      {s.total_artefacts}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#B3261E]">
+                      {s.critical_risk_count}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#B8781F]">
+                      {s.high_risk_count}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <Link
+                        href={`/scans/${s.scan_id}`}
+                        className="text-sm font-medium text-[#1B4B8C] hover:underline"
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {accuracy && (
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Corpus accuracy
-          </p>
-          <p className="mt-1 text-sm text-zinc-700">
+        <div className="mt-8 panel px-5 py-4">
+          <p className="text-xs font-medium text-ink-muted">Corpus accuracy</p>
+          <p className="mt-1 text-sm text-foreground">
             {accuracy.headline ||
               "Deterministic detector scoreboard against labelled fixtures."}
           </p>
-          <p className="mt-2 text-sm text-zinc-500">
-            Recall <span className="font-medium text-zinc-900">{accuracy.recall ?? "—"}</span>
+          <p className="mt-2 font-mono text-sm text-ink-muted">
+            Recall {accuracy.recall ?? "—"}
             {" · "}
-            Invented algorithms{" "}
-            <span className="font-medium text-zinc-900">
-              {accuracy.invented_algorithms ?? "—"}
-            </span>
+            Invented algorithms {accuracy.invented_algorithms ?? "—"}
             {" · "}
             {accuracy.deterministic ? "Deterministic" : "Non-deterministic"}
           </p>
@@ -97,93 +160,27 @@ export default function DashboardPage() {
       )}
 
       <section className="mt-8">
-        <h2 className="text-sm font-semibold text-zinc-900">Recent scans</h2>
-        <div className="mt-3 rounded-xl border border-zinc-200 bg-white shadow-sm">
-          {loading ? (
-            <div className="p-5">
-              <TableSkeleton rows={3} />
-            </div>
-          ) : recent.length === 0 ? (
-            <div className="flex flex-col items-center px-6 py-14 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                <ScanSearch className="h-6 w-6" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-zinc-900">No scans yet</p>
-              <p className="mt-1 max-w-sm text-sm text-zinc-500">
-                Upload an archive to get started with cryptographic discovery.
-              </p>
-              <Button asChild className="mt-5">
-                <Link href="/scans/new">Upload archive</Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-200 text-left">
-                    <th className="px-5 py-3 text-xs font-medium text-zinc-500">Name</th>
-                    <th className="px-5 py-3 text-xs font-medium text-zinc-500">Status</th>
-                    <th className="px-5 py-3 text-xs font-medium text-zinc-500">Artefacts</th>
-                    <th className="px-5 py-3 text-xs font-medium text-zinc-500">Critical</th>
-                    <th className="px-5 py-3 text-xs font-medium text-zinc-500">High</th>
-                    <th className="px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((s) => (
-                    <tr
-                      key={s.scan_id}
-                      className="border-b border-zinc-100 last:border-0 transition-colors duration-150 hover:bg-zinc-50"
-                    >
-                      <td className="px-5 py-3.5 font-medium text-zinc-900">{s.name}</td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge status={s.status} />
-                      </td>
-                      <td className="px-5 py-3.5 tabular-nums text-zinc-700">
-                        {s.total_artefacts}
-                      </td>
-                      <td className="px-5 py-3.5 tabular-nums text-red-600">
-                        {s.critical_risk_count}
-                      </td>
-                      <td className="px-5 py-3.5 tabular-nums text-orange-600">
-                        {s.high_risk_count}
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <Link
-                          href={`/scans/${s.scan_id}`}
-                          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                        >
-                          Open
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-sm font-semibold text-zinc-900">Quick start</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Bundled demo archives from <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">scanner/corpus/archives/</code>
+        <h2 className="text-sm font-semibold text-foreground">Quick start</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Bundled demo archives from{" "}
+          <code className="border border-border bg-surface px-1.5 py-0.5 font-mono text-xs">
+            scanner/corpus/archives/
+          </code>
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {QUICK_START_CORPUS.map((item) => (
             <div
               key={item.file}
-              className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+              className="panel flex items-center justify-between gap-4 p-4"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium text-zinc-900">{item.file}</p>
-                  <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700">
+                  <p className="truncate font-mono text-sm text-foreground">{item.file}</p>
+                  <span className="shrink-0 border border-border px-2 py-0.5 font-mono text-[10px] text-ink-muted">
                     {item.tag}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-zinc-500">{item.description}</p>
+                <p className="mt-0.5 text-xs text-ink-muted">{item.description}</p>
               </div>
               <Button variant="ghost" size="sm" asChild>
                 <Link href={corpusDemoHref(item.file)}>Try demo</Link>

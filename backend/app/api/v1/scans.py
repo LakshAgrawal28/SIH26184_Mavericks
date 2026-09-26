@@ -13,9 +13,73 @@ from app.engines.pqc_engine import recommend
 from app.models import Artefact, Scan, User
 from app.schemas.api import ContextUpdate, ScanCreateResponse, ScanSummary
 from app.services.scan_diff import compute_scan_diff, max_risk_score
+from app.services.scan_service import (
+    QUANTUM_CLASSES,
+    artefact_quantum_break,
+    public_artefact_metadata,
+)
 from app.services.storage import storage_service
 
 router = APIRouter(prefix="/scans", tags=["scans"])
+
+
+def _layer_name(method: str | None) -> str:
+    m = method or ""
+    if m.startswith("semgrep"):
+        return "semgrep"
+    if m == "cloud-hsm":
+        return "cloud-hsm"
+    if m == "sbom-lockfile":
+        return "sbom"
+    if m in ("catalog-api", "filename-hint"):
+        return "catalog"
+    if m in ("x509-parser", "pem-marker"):
+        return "certificate"
+    if m.startswith("binary"):
+        return "binary"
+    if m == "config-scanner":
+        return "config"
+    if m.startswith("manifest") or m == "package-json":
+        return "manifest"
+    return "source"
+
+
+def _artefact_payload(a: Artefact) -> dict:
+    meta = public_artefact_metadata(a.raw_metadata)
+    quantum_break = meta.get("quantum_break") or artefact_quantum_break(a)
+    return {
+        "artefact_id": str(a.id),
+        "name": a.name,
+        "asset_type": a.asset_type,
+        "algorithm": a.algorithm,
+        "primitive": a.primitive,
+        "library_name": a.library_name,
+        "library_version": a.library_version,
+        "mode": a.mode,
+        "key_size": a.key_size,
+        "file_path": a.file_path,
+        "line_number": a.line_number,
+        "confidence": a.confidence,
+        "detection_method": a.detection_method,
+        "evidence_snippet": a.evidence_snippet,
+        "raw_metadata": meta,
+        "risk": {
+            "hndl_risk": a.hndl_risk,
+            "operational_risk": a.operational_risk,
+            "final_score": a.final_risk_score,
+            "risk_band": a.risk_band,
+            "quantum_break": quantum_break,
+        },
+        "recommendation": {
+            "action": a.recommendation_action,
+            "primary_pqc": a.primary_pqc,
+            "hybrid_pair": a.hybrid_pair,
+            "rationale": a.recommendation_rationale,
+            "effort": a.effort_level,
+            "nist_standard": a.nist_standard,
+            "timeline_urgency": a.timeline_urgency,
+        },
+    }
 
 
 @router.post("", response_model=ScanCreateResponse, status_code=201)
@@ -130,6 +194,7 @@ def get_scan(scan_id: str, db: Session = Depends(get_db), user: User = Depends(g
         "current_stage": scan.current_stage,
         "error_message": scan.error_message,
         "data_lifetime_x": scan.data_lifetime_x,
+        "suggested_data_lifetime_x": getattr(scan, "suggested_data_lifetime_x", None),
         "migration_time_y": scan.migration_time_y,
         "created_at": scan.created_at.isoformat() if scan.created_at else None,
         "completed_at": scan.completed_at.isoformat() if scan.completed_at else None,
@@ -171,35 +236,7 @@ def list_artefacts(
     items = q.order_by(Artefact.final_risk_score.desc()).offset(offset).limit(limit).all()
     return {
         "total": total,
-        "artefacts": [
-            {
-                "artefact_id": str(a.id),
-                "name": a.name,
-                "asset_type": a.asset_type,
-                "algorithm": a.algorithm,
-                "file_path": a.file_path,
-                "line_number": a.line_number,
-                "confidence": a.confidence,
-                "detection_method": a.detection_method,
-                "evidence_snippet": a.evidence_snippet,
-                "risk": {
-                    "hndl_risk": a.hndl_risk,
-                    "operational_risk": a.operational_risk,
-                    "final_score": a.final_risk_score,
-                    "risk_band": a.risk_band,
-                },
-                "recommendation": {
-                    "action": a.recommendation_action,
-                    "primary_pqc": a.primary_pqc,
-                    "hybrid_pair": a.hybrid_pair,
-                    "rationale": a.recommendation_rationale,
-                    "effort": a.effort_level,
-                    "nist_standard": a.nist_standard,
-                    "timeline_urgency": a.timeline_urgency,
-                },
-            }
-            for a in items
-        ],
+        "artefacts": [_artefact_payload(a) for a in items],
     }
 
 
@@ -209,21 +246,25 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
     artefacts = db.query(Artefact).filter(Artefact.scan_id == scan.id).all()
     bands: dict[str, int] = {}
     methods: dict[str, int] = {}
+    asset_types: dict[str, int] = {}
+    primitives: dict[str, int] = {}
+    quantum_classes: dict[str, int] = {k: 0 for k in QUANTUM_CLASSES}
+    keep_or_inspect_count = 0
     for a in artefacts:
         bands[a.risk_band] = bands.get(a.risk_band, 0) + 1
         methods[a.detection_method] = methods.get(a.detection_method, 0) + 1
-    layers = sorted(
-        {
-            "semgrep" if (m or "").startswith("semgrep") else
-            "catalog" if m in ("catalog-api", "filename-hint") else
-            "certificate" if m in ("x509-parser", "pem-marker") else
-            "binary" if (m or "").startswith("binary") else
-            "config" if m == "config-scanner" else
-            "manifest" if (m or "").startswith("manifest") or m == "package-json" else
-            "source"
-            for m in methods
-        }
-    )
+        atype = a.asset_type or "unknown"
+        asset_types[atype] = asset_types.get(atype, 0) + 1
+        prim = a.primitive or "unknown"
+        primitives[prim] = primitives.get(prim, 0) + 1
+        qb = artefact_quantum_break(a) or "unknown"
+        if qb not in quantum_classes:
+            qb = "unknown"
+        quantum_classes[qb] += 1
+        action = (a.recommendation_action or "").strip()
+        if action in ("Keep", "Inspect") or qb in ("none", "inspect"):
+            keep_or_inspect_count += 1
+    layers = sorted({_layer_name(m) for m in methods})
     return {
         "scan_id": str(scan.id),
         "name": scan.name,
@@ -234,6 +275,17 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
         "layers_present": layers,
         "critical_risk_count": scan.critical_risk_count,
         "high_risk_count": scan.high_risk_count,
+        "asset_types": asset_types,
+        "primitives": primitives,
+        "quantum_classes": quantum_classes,
+        "shor_vulnerable_count": quantum_classes.get("shor", 0),
+        "classical_hygiene_count": quantum_classes.get("broken_classical", 0),
+        "hsm_cloud_count": sum(
+            1 for a in artefacts if (a.asset_type or "").lower() in ("hsm", "cloud-service")
+        ),
+        "library_count": sum(1 for a in artefacts if (a.asset_type or "").lower() == "library"),
+        "suggested_data_lifetime_x": getattr(scan, "suggested_data_lifetime_x", None),
+        "keep_or_inspect_count": keep_or_inspect_count,
     }
 
 
@@ -271,6 +323,17 @@ def scan_mosca(
         "migration_time_y": scan.migration_time_y,
     }
     result["transition"] = describe_transition(saved["baseline_category"], result["baseline_category"])
+    cert_count = (
+        db.query(Artefact)
+        .filter(Artefact.scan_id == scan.id, Artefact.asset_type == "certificate")
+        .count()
+    )
+    result["suggested_data_lifetime_x"] = getattr(scan, "suggested_data_lifetime_x", None)
+    result["cert_count"] = cert_count
+    result["data_lifetime_note"] = (
+        "X is data lifetime (harvest-now-decrypt-later / HNDL). "
+        "Certificates provide a remaining-validity hint and do not automatically overwrite X."
+    )
     return result
 
 
@@ -314,10 +377,15 @@ def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User
         if key in seen:
             continue
         seen.add(key)
+        rec_meta = public_artefact_metadata(a.raw_metadata)
         recommendations.append(
             {
                 "artefact_id": str(a.id),
                 "name": a.name,
+                "algorithm": a.algorithm,
+                "primitive": a.primitive,
+                "quantum_break": rec_meta.get("quantum_break") or artefact_quantum_break(a),
+                "use_case": rec_meta.get("use_case"),
                 "risk_band": a.risk_band,
                 "final_score": a.final_risk_score,
                 "action": action,

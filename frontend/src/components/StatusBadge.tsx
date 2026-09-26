@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 const styles: Record<string, string> = {
-  completed: "bg-emerald-50 text-emerald-700",
-  running: "bg-indigo-50 text-indigo-700",
-  processing: "bg-indigo-50 text-indigo-700",
-  pending: "bg-zinc-100 text-zinc-600",
-  queued: "bg-zinc-100 text-zinc-600",
-  failed: "bg-red-50 text-red-700",
+  completed: "border-[#1B7A3D] text-[#1B7A3D]",
+  running: "border-[#1B4B8C] text-[#1B4B8C]",
+  processing: "border-[#1B4B8C] text-[#1B4B8C]",
+  pending: "border-border text-ink-muted",
+  queued: "border-border text-ink-muted",
+  failed: "border-[#B3261E] text-[#B3261E]",
 };
 
 export function statusTone(status: string): string {
@@ -22,7 +22,7 @@ export default function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-md px-2 py-0.5 text-xs font-medium capitalize",
+        "inline-flex border bg-background px-2 py-0.5 text-xs font-medium capitalize",
         styles[tone]
       )}
     >

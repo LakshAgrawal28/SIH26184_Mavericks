@@ -42,7 +42,7 @@ def build_cbom(scan: Scan, artefacts: list[Artefact], *, validate: bool = True) 
                         "type": "application",
                         "bom-ref": TOOL_BOM_REF,
                         "name": "ECDAT",
-                        "version": "1.0.0",
+                        "version": "2.0.0",
                         "description": "Enterprise Cryptographic Discovery & Analysis Tool",
                     }
                 ]
@@ -70,7 +70,8 @@ def _component_from_artefact(art: Artefact) -> dict:
     asset_type = _asset_type(art)
     properties = _ecdat_properties(art)
 
-    if art.asset_type == "library":
+    kind = (art.asset_type or "").lower()
+    if kind == "library":
         comp: dict = {
             "type": "library",
             "bom-ref": bom_ref,
@@ -112,7 +113,7 @@ def _component_from_artefact(art: Artefact) -> dict:
         crypto["certificateProperties"] = _certificate_properties(art)
 
     elif asset_type == "protocol":
-        crypto["protocolProperties"] = _protocol_properties(art)
+        crypto["protocolProperties"] = _protocol_properties(art, kind=kind)
 
     elif asset_type == "related-crypto-material":
         crypto["relatedCryptoMaterialProperties"] = {
@@ -137,6 +138,8 @@ def _asset_type(art: Artefact) -> str:
     raw = (art.asset_type or "algorithm").lower()
     if raw in ("algorithm", "certificate", "protocol", "related-crypto-material"):
         return raw
+    if raw in ("hsm", "cloud-service"):
+        return "protocol"
     if raw == "library":
         return "library"
     if "CERT" in (art.name or "").upper() or raw == "x509":
@@ -161,6 +164,14 @@ def _ecdat_properties(art: Artefact) -> list[dict]:
         props.append({"name": "ecdat:hybrid_pair", "value": art.hybrid_pair})
     if art.nist_standard:
         props.append({"name": "ecdat:nist_standard", "value": art.nist_standard})
+    kind = (art.asset_type or "").lower()
+    if kind in ("hsm", "cloud-service"):
+        props.append({"name": "ecdat:asset_kind", "value": kind})
+    meta = art.raw_metadata if isinstance(art.raw_metadata, dict) else {}
+    if meta.get("quantum_break") is not None:
+        props.append({"name": "ecdat:quantum_break", "value": str(meta["quantum_break"])})
+    if meta.get("use_case"):
+        props.append({"name": "ecdat:use_case", "value": str(meta["use_case"])})
     return props
 
 
@@ -188,7 +199,10 @@ def _certificate_properties(art: Artefact) -> dict:
     return props
 
 
-def _protocol_properties(art: Artefact) -> dict:
+def _protocol_properties(art: Artefact, *, kind: str | None = None) -> dict:
+    raw_kind = (kind or art.asset_type or "").lower()
+    if raw_kind in ("hsm", "cloud-service"):
+        return {"type": "other", "version": "1.0"}
     blob = f"{art.algorithm or ''} {art.name or ''}".upper()
     version = "1.0"
     if "1.3" in blob or "TLS13" in blob or "TLSV1.3" in blob:

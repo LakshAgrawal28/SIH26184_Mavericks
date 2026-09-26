@@ -166,6 +166,8 @@ def test_cbom_validates_against_official_schema():
                 "subjectName": "CN=api.internal.ntro.example",
                 "issuerName": "CN=api.internal.ntro.example",
                 "notValidAfter": "2026-09-23T00:00:00Z",
+                "quantum_break": "shor",
+                "use_case": "certificate",
             },
             final_risk_score=8.2,
             risk_band="CRITICAL",
@@ -197,12 +199,33 @@ def test_cbom_validates_against_official_schema():
             final_risk_score=3.0,
             risk_band="LOW",
         ),
+        Artefact(
+            scan_id=scan.id,
+            bom_ref="crypto/hsm/hsm001",
+            name="Cloud KMS RSA wrap",
+            asset_type="hsm",
+            algorithm="RSA-2048",
+            primitive="pke",
+            detection_method="catalog-api",
+            confidence=0.9,
+            raw_metadata={"quantum_break": "shor", "use_case": "key-wrap", "cloud_provider": "aws"},
+            final_risk_score=8.0,
+            risk_band="HIGH",
+        ),
     ]
     bom = build_cbom(scan, arts, validate=False)
     result = validate_cbom(bom)
     assert result["valid"] is True, result["errors"]
     assert result["schema"]
     assert bom["specVersion"] == "1.6"
+    assert bom["metadata"]["tools"]["components"][0]["version"] == "2.0.0"
     types = {c["type"] for c in bom["components"]}
     assert "cryptographic-asset" in types
     assert "library" in types
+    hsm = next(c for c in bom["components"] if c["bom-ref"] == "crypto/hsm/hsm001")
+    assert hsm["type"] == "cryptographic-asset"
+    assert hsm["cryptoProperties"]["assetType"] == "protocol"
+    prop_names = {p["name"]: p["value"] for p in hsm.get("properties", [])}
+    assert prop_names["ecdat:asset_kind"] == "hsm"
+    assert prop_names["ecdat:quantum_break"] == "shor"
+    assert prop_names["ecdat:use_case"] == "key-wrap"

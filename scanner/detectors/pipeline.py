@@ -9,6 +9,8 @@ from scanner.detectors.base import IGNORE_DIRS, CryptoFinding
 from scanner.detectors.binary_detector import detect_binary
 from scanner.detectors.catalog_detector import detect_catalog
 from scanner.detectors.cert_detector import detect_certificates, detect_configs
+from scanner.detectors.cloud_hsm_detector import detect_cloud_hsm
+from scanner.detectors.sbom_detector import detect_sbom
 from scanner.detectors.semgrep_detector import detect_semgrep
 from scanner.detectors.source_detector import detect_manifests, detect_source
 
@@ -16,7 +18,9 @@ _METHOD_RANK = {
     "semgrep": 50,
     "semgrep-rules": 45,
     "x509-parser": 40,
+    "cloud-hsm": 36,
     "package-json": 35,
+    "sbom-lockfile": 34,
     "manifest-maven": 30,
     "manifest-npm": 30,
     "manifest-pypi": 30,
@@ -40,6 +44,8 @@ def run_all_detectors(root: Path) -> list[CryptoFinding]:
     findings.extend(detect_certificates(root))
     findings.extend(detect_configs(root))
     findings.extend(detect_binary(root))
+    findings.extend(detect_cloud_hsm(root))
+    findings.extend(detect_sbom(root))
     return normalize_findings(findings)
 
 
@@ -93,6 +99,7 @@ def _family(algorithm: str) -> str:
         "ML-KEM", "ML-DSA", "SLH-DSA", "RSA", "ECDSA", "ECDH", "ED25519", "X25519",
         "AES", "SHA-256", "SHA-1", "SHA1", "MD5", "3DES", "DES", "RC4", "CHACHA20",
         "TLS", "HS256", "RS256", "JWT", "HMAC", "X.509", "BCRYPT", "PBKDF2",
+        "KMS", "VAULT", "PKCS11", "CLOUDHSM",
     ):
         if token in blob:
             return "SHA-1" if token in ("SHA-1", "SHA1") else token

@@ -2,7 +2,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     database_url: str = "sqlite:///./ecdat_dev.db"
     redis_url: str = "redis://localhost:6379/0"
@@ -32,7 +36,9 @@ class Settings(BaseSettings):
 
     ai_narration_enabled: bool = False
     groq_api_key: str | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-20b"
+    # Max artefacts embedded in AI context (lower = fewer tokens, less rate-limit pressure).
+    groq_context_artefact_limit: int = 40
 
     @property
     def cors_origins(self) -> list[str]:

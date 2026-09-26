@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const Z_BASELINE = 10;
@@ -21,76 +24,96 @@ export default function MoscaRiskPanel({
   const warning = !atRisk && margin < 2;
 
   const verdict = atRisk ? "At risk" : warning ? "Warning" : "Safe";
-  const verdictStyle = atRisk
-    ? "border-red-200 bg-red-50 text-red-800"
+  const verdictBorder = atRisk
+    ? "border-[#B3261E] text-[#B3261E]"
     : warning
-      ? "border-amber-200 bg-amber-50 text-amber-800"
-      : "border-emerald-200 bg-emerald-50 text-emerald-800";
+      ? "border-[#B8781F] text-[#B8781F]"
+      : "border-[#1B7A3D] text-[#1B7A3D]";
 
-  const barPct = Math.min(100, (needed / Math.max(zValue, needed, 1)) * 100);
+  const targetBarPct = Math.min(100, (needed / Math.max(zValue, needed, 1)) * 100);
   const zPct = Math.min(100, (zValue / Math.max(zValue, needed, 1)) * 100);
+  const barColor = atRisk ? "bg-[#B3261E]" : warning ? "bg-[#B8781F]" : "bg-[#1B7A3D]";
+
+  const [drawPct, setDrawPct] = useState(0);
+  useEffect(() => {
+    const start = performance.now();
+    let frame = 0;
+    const duration = 700;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      setDrawPct(targetBarPct * t);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [targetBarPct, dataLifetimeX, migrationTimeY, zValue]);
+
+  const axisMax = Math.max(zValue, needed);
 
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-zinc-200 bg-white p-6 shadow-sm",
-        sticky && "lg:sticky lg:top-6"
-      )}
-    >
-      <h3 className="text-sm font-semibold text-zinc-900">Mosca risk preview</h3>
-      <p className="mt-1 text-xs text-zinc-500">
+    <div className={cn("panel p-6", sticky && "lg:sticky lg:top-6")}>
+      <h3 className="text-sm font-semibold text-foreground">Mosca risk preview</h3>
+      <p className="mt-1 font-mono text-xs text-ink-muted">
         Baseline scenario · Z = {zValue} years
       </p>
 
-      <div className="mt-6 space-y-4">
-        <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">X + Y needed</span>
-          <span className="font-medium tabular-nums text-zinc-900">{needed} yrs</span>
+      <div className="mt-6 space-y-2">
+        <div className="flex justify-between font-mono text-xs">
+          <span className="text-ink-muted">X + Y needed</span>
+          <span className="font-medium tabular-nums text-foreground">{needed} yrs</span>
         </div>
-        <div className="relative h-2 overflow-hidden rounded-full bg-zinc-100">
-          <div
-            className={cn(
-              "absolute inset-y-0 left-0 rounded-full transition-all duration-150",
-              atRisk ? "bg-red-500" : warning ? "bg-amber-500" : "bg-emerald-500"
-            )}
-            style={{ width: `${barPct}%` }}
-          />
-          <div
-            className="absolute top-0 h-full w-0.5 bg-indigo-600"
-            style={{ left: `${zPct}%` }}
-            title={`Z = ${zValue}y`}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>0</span>
-          <span>Z marker</span>
-          <span>{Math.max(zValue, needed)}y</span>
+        <div className="relative pt-4">
+          <div className="flex justify-between font-mono text-[10px] text-ink-muted">
+            <span>0</span>
+            <span>{axisMax}y</span>
+          </div>
+          <div className="relative mt-1 h-px bg-border">
+            <div
+              className={cn("absolute left-0 top-0 h-px transition-none", barColor)}
+              style={{ width: `${drawPct}%` }}
+            />
+            <div
+              className="absolute top-[-6px] h-3 w-px bg-[#1B4B8C]"
+              style={{ left: `${zPct}%` }}
+              title={`Z = ${zValue}y`}
+            />
+            <span
+              className="absolute top-3 -translate-x-1/2 font-mono text-[10px] text-[#1B4B8C]"
+              style={{ left: `${zPct}%` }}
+            >
+              Z
+            </span>
+          </div>
+          <div className="mt-1 flex justify-between font-mono text-[10px] text-ink-muted">
+            <span>timeline</span>
+            <span>Z marker</span>
+          </div>
         </div>
       </div>
 
-      <div className={cn("mt-6 rounded-lg border px-4 py-3 text-center", verdictStyle)}>
+      <div className={cn("mt-6 border bg-background px-4 py-3", verdictBorder)}>
         <p className="text-sm font-semibold">{verdict}</p>
-        <p className="mt-0.5 text-xs opacity-80">
+        <p className="mt-0.5 text-xs opacity-90">
           {atRisk
             ? `Margin expired by ${Math.abs(margin)} years`
             : `${margin} years of safety margin`}
         </p>
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-        <code className="block text-center text-xs text-zinc-700">
-          X + Y {atRisk ? ">" : "≤"} Z → {atRisk ? "At Risk" : "Within margin"}
+      <div className="mt-4 border border-border bg-surface px-3 py-2.5">
+        <code className="block text-center font-mono text-xs text-foreground">
+          X + Y {atRisk ? ">" : "≤"} Z → {atRisk ? "At risk" : "Within margin"}
         </code>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-        <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-          <dt className="text-zinc-500">Data lifetime (X)</dt>
-          <dd className="mt-0.5 font-medium text-zinc-900">{dataLifetimeX}y</dd>
+      <dl className="mt-4 grid grid-cols-2 gap-3 font-mono text-xs">
+        <div className="border border-border bg-background px-3 py-2">
+          <dt className="text-ink-muted">Data lifetime (X)</dt>
+          <dd className="mt-0.5 font-medium text-foreground">{dataLifetimeX}y</dd>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-          <dt className="text-zinc-500">Migration (Y)</dt>
-          <dd className="mt-0.5 font-medium text-zinc-900">{migrationTimeY}y</dd>
+        <div className="border border-border bg-background px-3 py-2">
+          <dt className="text-ink-muted">Migration (Y)</dt>
+          <dd className="mt-0.5 font-medium text-foreground">{migrationTimeY}y</dd>
         </div>
       </dl>
     </div>

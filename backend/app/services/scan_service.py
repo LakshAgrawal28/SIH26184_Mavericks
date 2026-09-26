@@ -224,3 +224,187 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         import shutil
         if work_root.exists():
             shutil.rmtree(work_root, ignore_errors=True)
+
+
+PUBLIC_METADATA_KEYS = (
+    "quantum_break",
+    "qv",
+    "use_case",
+    "unmapped",
+    "jwt_alg",
+    "cloud_provider",
+    "purl",
+    "days_to_expiry",
+)
+
+
+def _as_float(value) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _call_supported(fn, **kwargs):
+    try:
+        params = inspect.signature(fn).parameters
+        if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+            return fn(**kwargs)
+        return fn(**{k: v for k, v in kwargs.items() if k in params})
+    except (TypeError, ValueError):
+        try:
+            return fn(**kwargs)
+        except TypeError:
+            kwargs.pop("primitive", None)
+            return fn(**kwargs)
+
+
+def _score_finding(**kwargs) -> tuple[float, float, float, str, dict]:
+    extra: dict = {}
+    try:
+        import app.engines.risk_engine as risk_engine
+
+        fn = getattr(risk_engine, "compute_risk_detail", None) or compute_risk
+    except Exception:
+        fn = compute_risk
+    try:
+        result = _call_supported(fn, **kwargs)
+    except Exception:
+        result = compute_risk(
+            algorithm=kwargs.get("algorithm"),
+            mode=kwargs.get("mode"),
+            sensitivity=kwargs.get("sensitivity"),
+            lifetime_years=kwargs.get("lifetime_years"),
+            exposure=kwargs.get("exposure"),
+            criticality=kwargs.get("criticality"),
+            confidence=kwargs.get("confidence", 1.0),
+            asset_type=kwargs.get("asset_type", "algorithm"),
+            cert_expiry_days=kwargs.get("cert_expiry_days"),
+        )
+    if isinstance(result, dict):
+        hndl = float(result.get("hndl_risk", result.get("hndl", 0)) or 0)
+        op = float(result.get("operational_risk", result.get("operational", 0)) or 0)
+        final = float(result.get("final_risk_score", result.get("final", 0)) or 0)
+        band = str(result.get("risk_band", result.get("band", "LOW")))
+        for key in ("quantum_break", "qv", "use_case"):
+            if key in result and result[key] is not None:
+                extra[key] = result[key]
+        return hndl, op, final, band, extra
+    hndl, op, final, band = result[:4]
+    return float(hndl), float(op), float(final), str(band), extra
+
+
+def _taxonomy_call(name: str, *args, **kwargs):
+    try:
+        import app.engines.taxonomy as taxonomy
+
+        fn = getattr(taxonomy, name, None)
+        if fn is None:
+            return None
+        return _call_supported(fn, **kwargs) if kwargs else fn(*args)
+    except Exception:
+        return None
+
+
+def normalize_quantum_break(value) -> str:
+    if value is None:
+        return "unknown"
+    raw = str(value).strip().lower().replace(" ", "_").replace("-", "_")
+    aliases = {
+        "shor": "shor",
+        "shor_vulnerable": "shor",
+        "grover": "grover",
+        "broken_classical": "broken_classical",
+        "broken": "broken_classical",
+        "classical": "broken_classical",
+        "none": "none",
+        "pqc": "none",
+        "pqc_safe": "none",
+        "inspect": "inspect",
+        "unknown": "unknown",
+    }
+    mapped = aliases.get(raw, raw)
+    return mapped if mapped in QUANTUM_CLASSES else "unknown"
+
+
+def _fallback_quantum_break(algorithm: str | None, raw_metadata: dict, qv: float | None) -> str:
+    if raw_metadata.get("unmapped"):
+        return "inspect"
+    if qv is None:
+        return "unknown"
+    try:
+        from app.engines.taxonomy import get_classical_weakness
+
+        classical = get_classical_weakness(algorithm or "", None)
+    except Exception:
+        classical = 0.0
+    if qv == 0.0:
+        return "none"
+    if classical >= 8:
+        return "broken_classical"
+    if qv >= 8:
+        return "shor"
+    if qv <= 4:
+        return "grover"
+    return "unknown"
+
+
+def _enrich_raw_metadata(
+    raw_metadata: dict,
+    *,
+    algorithm: str | None,
+    primitive: str | None,
+    asset_type: str | None,
+    extra: dict | None = None,
+) -> dict:
+    extra = extra or {}
+    qv = extra.get("qv")
+    if qv is None:
+        qv = _taxonomy_call("get_qv", algorithm=algorithm, primitive=primitive)
+        if qv is None:
+            try:
+                from app.engines.taxonomy import get_qv
+
+                qv = get_qv(algorithm)
+            except Exception:
+                qv = None
+    if qv is not None:
+        try:
+            raw_metadata["qv"] = float(qv)
+            qv = float(qv)
+        except (TypeError, ValueError):
+            pass
+
+    qb = extra.get("quantum_break") or _taxonomy_call(
+        "get_quantum_break", algorithm=algorithm, primitive=primitive
+    )
+    if not qb:
+        qb = _fallback_quantum_break(algorithm, raw_metadata, qv if isinstance(qv, (int, float)) else None)
+    raw_metadata["quantum_break"] = normalize_quantum_break(qb)
+
+    use_case = extra.get("use_case") or _taxonomy_call(
+        "classify_use_case",
+        algorithm=algorithm,
+        primitive=primitive,
+        asset_type=asset_type,
+    )
+    if not use_case:
+        use_case = primitive or asset_type
+    if use_case:
+        raw_metadata["use_case"] = str(use_case)
+    return raw_metadata
+
+
+def public_artefact_metadata(raw_metadata) -> dict:
+    if not isinstance(raw_metadata, dict):
+        return {}
+    return {k: raw_metadata[k] for k in PUBLIC_METADATA_KEYS if k in raw_metadata}
+
+
+def artefact_quantum_break(artefact: Artefact) -> str | None:
+    meta = artefact.raw_metadata if isinstance(artefact.raw_metadata, dict) else {}
+    if "quantum_break" in meta:
+        return normalize_quantum_break(meta.get("quantum_break"))
+    return None

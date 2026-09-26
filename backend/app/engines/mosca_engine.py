@@ -18,6 +18,7 @@ def compute_mosca(
     y: float,
     final_risk: float = 0.0,
     extra_z: float | None = None,
+    cert_derived_x: float | None = None,
 ) -> dict:
     total = round(float(x) + float(y), 2)
     scenarios = []
@@ -45,17 +46,22 @@ def compute_mosca(
 
     baseline = next((s for s in scenarios if s["name"] == "Baseline"), scenarios[0] if scenarios else None)
 
+    parameters = {
+        "data_lifetime_x": float(x),
+        "migration_time_y": float(y),
+        "total_time_needed": total,
+    }
+    if cert_derived_x is not None:
+        parameters["cert_derived_x"] = float(cert_derived_x)
+
     return {
         "formula": "IF (X + Y) > Z THEN confidentiality is already expired under Mosca's theorem",
-        "parameters": {
-            "data_lifetime_x": float(x),
-            "migration_time_y": float(y),
-            "total_time_needed": total,
-        },
+        "parameters": parameters,
         "scenarios": scenarios,
         "overall_category": worst_category,
         "baseline_category": baseline["category"] if baseline else worst_category,
         "interpretation": _interpret(worst_category, total, baseline),
+        "metadata": {"cert_derived_x": None if cert_derived_x is None else float(cert_derived_x)},
     }
 
 

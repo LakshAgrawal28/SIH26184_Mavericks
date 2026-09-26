@@ -14,9 +14,15 @@ class NarrateRequest(BaseModel):
     style: str = Field(default="executive", max_length=64)
 
 
+class ChatTurn(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000)
     against_scan_id: str | None = Field(default=None, max_length=64)
+    history: list[ChatTurn] | None = None
 
 
 def _require_ai():
@@ -59,6 +65,7 @@ async def chat_scan_endpoint(
     if body.against_scan_id:
         baseline = get_scan_for_user(db, body.against_scan_id, user)
     try:
-        return await chat_about_scan(db, scan, body.message, baseline=baseline)
+        hist = [t.model_dump() for t in body.history] if body.history else None
+        return await chat_about_scan(db, scan, body.message, baseline=baseline, history=hist)
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

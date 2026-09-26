@@ -22,19 +22,19 @@ export default function SettingsPage() {
       />
 
       <div className="space-y-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">API connection</h2>
-          <p className="mt-1 text-sm text-zinc-500">
+        <div className="panel p-6">
+          <h2 className="text-sm font-semibold text-foreground">API connection</h2>
+          <p className="mt-1 text-sm text-ink-muted">
             Backend URL used for scan and discovery requests.
           </p>
-          <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-sm text-zinc-700">
+          <p className="mt-3 border border-border bg-surface px-3 py-2 font-mono text-sm text-foreground">
             {API_URL}
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">Session</h2>
-          <p className="mt-1 text-sm text-zinc-500">
+        <div className="panel p-6">
+          <h2 className="text-sm font-semibold text-foreground">Session</h2>
+          <p className="mt-1 text-sm text-ink-muted">
             Sign out of the current operator session on this device.
           </p>
           <Button variant="outline" className="mt-4" onClick={logout}>
@@ -42,9 +42,9 @@ export default function SettingsPage() {
           </Button>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">About</h2>
-          <p className="mt-2 text-sm text-zinc-500">
+        <div className="panel p-6">
+          <h2 className="text-sm font-semibold text-foreground">About</h2>
+          <p className="mt-2 text-sm text-ink-muted">
             ECDAT — Enterprise Cryptographic Discovery &amp; Analysis Tool.
             CycloneDX CBOM export, quantum risk scoring, and Mosca timeline analysis.
           </p>

@@ -9,6 +9,7 @@ from app.api.v1 import auth, meta, narration, reports, scans
 from app.config import settings
 from app.core.security import ensure_default_admin
 from app.corpus_bootstrap import ensure_quick_start_archives
+from app.db.migrate import ensure_schema_patches
 from app.db.session import Base, SessionLocal, engine
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     ensure_quick_start_archives()
     Base.metadata.create_all(bind=engine)
+    ensure_schema_patches(engine)
     db = SessionLocal()
     try:
         ensure_default_admin(db)

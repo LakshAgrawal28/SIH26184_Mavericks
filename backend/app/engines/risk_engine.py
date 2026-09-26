@@ -1,9 +1,14 @@
-from app.engines.taxonomy import get_classical_weakness, get_qv
+from app.engines.taxonomy import (
+    classify_use_case,
+    get_classical_weakness,
+    get_quantum_break,
+    get_qv,
+)
 
 # Weighting and band cutoffs are documented in docs/RISK_MODEL.md (HNDL 0.6 / operational 0.4).
 
 
-def compute_risk(
+def compute_risk_detail(
     algorithm: str | None,
     mode: str | None,
     sensitivity: int,
@@ -13,10 +18,13 @@ def compute_risk(
     confidence: float,
     asset_type: str = "algorithm",
     cert_expiry_days: int | None = None,
-) -> tuple[float, float, float, str]:
-    qv = get_qv(algorithm)
+    primitive: str | None = None,
+) -> dict:
+    qv = get_qv(algorithm, primitive)
     classical = get_classical_weakness(algorithm or "", mode)
-    asym_factor = 1.5 if asset_type in ("algorithm", "certificate") and qv >= 8 else 1.0
+    quantum_break = get_quantum_break(algorithm, primitive)
+    use_case = classify_use_case(algorithm, primitive, asset_type=asset_type)
+    asym_factor = 1.5 if quantum_break == "shor" else 1.0
 
     hndl = qv * (sensitivity / 10) * min(lifetime_years / 10, 3.0) * (exposure / 10) * asym_factor
     hndl = min(10.0, hndl)
@@ -43,4 +51,45 @@ def compute_risk(
     else:
         band = "LOW"
 
-    return round(hndl, 2), round(operational, 2), round(final, 2), band
+    hndl_r, op_r, final_r = round(hndl, 2), round(operational, 2), round(final, 2)
+    return {
+        "hndl": hndl_r,
+        "operational": op_r,
+        "final": final_r,
+        "band": band,
+        "qv": qv,
+        "quantum_break": quantum_break,
+        "classical": round(classical, 2),
+        "use_case": use_case,
+        "hndl_risk": hndl_r,
+        "operational_risk": op_r,
+        "final_risk_score": final_r,
+        "risk_band": band,
+    }
+
+
+def compute_risk(
+    algorithm: str | None,
+    mode: str | None,
+    sensitivity: int,
+    lifetime_years: float,
+    exposure: int,
+    criticality: int,
+    confidence: float,
+    asset_type: str = "algorithm",
+    cert_expiry_days: int | None = None,
+    primitive: str | None = None,
+) -> tuple[float, float, float, str]:
+    detail = compute_risk_detail(
+        algorithm,
+        mode,
+        sensitivity,
+        lifetime_years,
+        exposure,
+        criticality,
+        confidence,
+        asset_type=asset_type,
+        cert_expiry_days=cert_expiry_days,
+        primitive=primitive,
+    )
+    return detail["hndl"], detail["operational"], detail["final"], detail["band"]

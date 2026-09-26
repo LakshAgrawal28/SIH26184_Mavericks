@@ -3,7 +3,13 @@ from app.engines.mosca_engine import compute_mosca
 from app.engines.pqc_engine import recommend
 from app.engines.risk_engine import compute_risk
 from app.engines.cert_expiry import compute_expiry_urgency
-from app.engines.taxonomy import get_qv, PQC_MAP, canonicalize_algorithm
+from app.engines.taxonomy import (
+    canonicalize_algorithm,
+    classify_use_case,
+    get_qv,
+    get_quantum_break,
+    PQC_MAP,
+)
 
 
 def test_risk_rsa_critical():
@@ -33,11 +39,13 @@ def test_pqc_rsa_recommendation():
 
 
 def test_pqc_jwt_library_and_bcrypt():
-    action, primary, _, _, _, _, _ = recommend("jsonwebtoken@^9.0.3", "MEDIUM")
-    assert action == "Hybrid Migration"
-    assert primary == "ML-DSA-65"
-    hs_action, _, _, _, _, _, _ = recommend("jwt.sign", "LOW")
-    assert hs_action in ("Hybrid Migration", "Migrate")
+    action, primary, _, rationale, _, _, _ = recommend("jsonwebtoken@^9.0.3", "MEDIUM")
+    assert action == "Inspect"
+    assert primary is None
+    assert "not Shor-broken" in rationale or "alg header" in rationale
+    hs_action, hs_primary, _, _, _, _, _ = recommend("jwt.sign", "LOW")
+    assert hs_action == "Inspect"
+    assert hs_primary is None
     harden, pqc, _, _, _, _, _ = recommend("bcrypt", "LOW")
     assert harden == "Harden"
     assert pqc == "Argon2id"
@@ -129,3 +137,56 @@ class TestAlgorithmCanonicalization:
         assert primary != "ML-KEM-768"
         assert primary == "ML-DSA-65"
         assert hybrid is not None
+
+
+class TestPrimitiveAwareScoring:
+    def test_aes256_high_sensitivity_not_critical(self):
+        qv = get_qv("AES-256")
+        assert qv < 3
+        assert get_quantum_break("AES-256") == "grover"
+        _, _, final, band = compute_risk(
+            algorithm="AES-256",
+            mode=None,
+            sensitivity=10,
+            lifetime_years=15.0,
+            exposure=10,
+            criticality=10,
+            confidence=1.0,
+        )
+        assert band != "CRITICAL"
+        assert band in ("LOW", "MEDIUM")
+        assert final < 7.5
+
+    def test_hs256_not_scored_like_rsa(self):
+        assert get_qv("HS256") < 4
+        action, primary, hybrid, rationale, *_ = recommend("HS256", "LOW")
+        assert action in ("Keep", "Harden")
+        assert action != "Hybrid Migration"
+        assert primary not in ("ML-DSA-65", "ML-KEM-768")
+        assert hybrid is None
+        assert "Shor-broken" in rationale or "mac" in rationale.lower()
+
+    def test_jsonwebtoken_inspect(self):
+        action, primary, _, rationale, *_ = recommend("jsonwebtoken", "HIGH")
+        assert action == "Inspect"
+        assert primary is None
+        assert "alg" in rationale.lower() or "not Shor-broken" in rationale
+
+    def test_rsa_signature_recommends_ml_dsa(self):
+        action, primary, hybrid, rationale, *_ = recommend(
+            "RSA-2048",
+            "CRITICAL",
+            primitive="signature",
+        )
+        assert primary == "ML-DSA-65"
+        assert "ML-KEM" not in (primary or "")
+        assert hybrid is None or "ML-KEM" not in hybrid
+        assert "signature" in rationale.lower()
+        assert action in ("Hybrid Migration", "Migrate")
+
+    def test_unmapped_not_shor_via_ec_substring(self):
+        assert get_qv("SecretKeySpec") != 10
+        assert get_qv("AES-GCM") != 10
+        assert get_qv("AES-GCM") < 3
+        assert get_quantum_break("SecretKeySpec") != "shor"
+        assert classify_use_case("AES-256", "block-cipher") == "symmetric"

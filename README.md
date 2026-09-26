@@ -158,14 +158,14 @@ flowchart TB
 
 | Capability | Typical inventory tools | ECDAT |
 |------------|------------------------|-------|
-| Discovery depth | Source code only | **7 detection layers** — Semgrep, catalog, manifests, certs, configs, binaries |
+| Discovery depth | Source code only | **9 detection layers** — Semgrep, catalog, manifests/SBOM lockfiles, certs, configs, binaries, HSM/cloud KMS |
 | Evidence | Algorithm name only | **File path + line number + code snippet** for every finding |
 | Quantum risk | None or generic | **Composite 0–10 score** with HNDL + operational factors |
 | Migration planning | Static report | **Interactive Mosca sliders** with 4 CRQC timeline scenarios |
 | PQC guidance | Generic advice | **NIST FIPS 203/204/205** mappings + hybrid pairings (e.g. X25519+ML-KEM-768) |
 | Output format | Custom JSON | **CycloneDX 1.6+ CBOM** — industry standard, tool-integrable |
 | Deployment | Cloud SaaS | **On-prem / Docker / air-gap ready** — no mandatory cloud |
-| Accuracy | Unverifiable | **Published corpus scoreboard** — 23/23 checks, 0 invented algorithms |
+| Accuracy | Unverifiable | **Published corpus scoreboard** — labelled family recall, 0 invented algorithms |
 
 ---
 
@@ -182,7 +182,7 @@ sequenceDiagram
 
     User->>UI: Upload .zip archive
     UI->>API: POST /api/v1/scans (JWT + file)
-    API->>Scan: Extract & run 7 detection layers
+    API->>Scan: Extract & run detection layers
     Scan-->>API: CryptoFinding[] with evidence
     API->>Eng: Score risk, compute Mosca, map PQC
     Eng-->>API: Risk scores + recommendations
@@ -619,7 +619,7 @@ SIH26184_Mavericks/
 │       ├── components/          # AppShell, MoscaRiskPanel, StatCard, …
 │       └── lib/                   # API client, corpus demos, navigation
 ├── scanner/                     # Standalone discovery engine
-│   ├── detectors/               # 7 detection layers + pipeline
+│   ├── detectors/               # detection layers + pipeline
 │   ├── catalog/                 # Cross-language signature catalog
 │   ├── rules/                   # Semgrep YAML rules
 │   ├── corpus/                  # Labelled fixtures + demo archives

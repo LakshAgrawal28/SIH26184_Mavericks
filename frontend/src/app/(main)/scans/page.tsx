@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import { TableSkeleton } from "@/components/Skeleton";
@@ -35,23 +34,20 @@ export default function ScansPage() {
         breadcrumb={["ECDAT", "Scans"]}
         actions={
           <Button asChild>
-            <Link href="/scans/new">
-              <Plus className="h-4 w-4" />
-              New scan
-            </Link>
+            <Link href="/scans/new">New scan</Link>
           </Button>
         }
       />
 
-      <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="panel">
         {loading ? (
           <div className="p-5">
             <TableSkeleton rows={5} />
           </div>
         ) : scans.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <p className="text-sm font-medium text-zinc-900">No scans yet</p>
-            <p className="mt-1 text-sm text-zinc-500">
+          <div className="px-6 py-14 text-left">
+            <p className="text-sm font-medium text-foreground">No scans yet</p>
+            <p className="mt-1 text-sm text-ink-muted">
               Create your first scan to discover cryptographic assets.
             </p>
             <Button asChild className="mt-5">
@@ -62,36 +58,33 @@ export default function ScansPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 text-left">
-                  <th className="px-5 py-3 text-xs font-medium text-zinc-500">Name</th>
-                  <th className="px-5 py-3 text-xs font-medium text-zinc-500">Status</th>
-                  <th className="px-5 py-3 text-xs font-medium text-zinc-500">Artefacts</th>
-                  <th className="px-5 py-3 text-xs font-medium text-zinc-500">Critical</th>
-                  <th className="px-5 py-3 text-xs font-medium text-zinc-500">High</th>
-                  <th className="px-5 py-3 text-xs font-medium text-zinc-500">Created</th>
+                <tr className="border-b border-border text-left">
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Name</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Status</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Artefacts</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Critical</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">High</th>
+                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Created</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {scans.map((s) => (
-                  <tr
-                    key={s.scan_id}
-                    className="border-b border-zinc-100 last:border-0 transition-colors duration-150 hover:bg-zinc-50"
-                  >
-                    <td className="px-5 py-3.5 font-medium text-zinc-900">{s.name}</td>
+                  <tr key={s.scan_id} className="border-b border-border last:border-0">
+                    <td className="px-5 py-3.5 font-medium text-foreground">{s.name}</td>
                     <td className="px-5 py-3.5">
                       <StatusBadge status={s.status} />
                     </td>
-                    <td className="px-5 py-3.5 tabular-nums text-zinc-700">
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-ink-muted">
                       {s.total_artefacts}
                     </td>
-                    <td className="px-5 py-3.5 tabular-nums text-red-600">
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#B3261E]">
                       {s.critical_risk_count}
                     </td>
-                    <td className="px-5 py-3.5 tabular-nums text-orange-600">
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#B8781F]">
                       {s.high_risk_count}
                     </td>
-                    <td className="px-5 py-3.5 text-zinc-500">
+                    <td className="px-5 py-3.5 text-ink-muted">
                       {s.created_at
                         ? new Date(s.created_at).toLocaleDateString()
                         : "—"}
@@ -99,7 +92,7 @@ export default function ScansPage() {
                     <td className="px-5 py-3.5 text-right">
                       <Link
                         href={`/scans/${s.scan_id}`}
-                        className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                        className="text-sm font-medium text-[#1B4B8C] hover:underline"
                       >
                         View
                       </Link>

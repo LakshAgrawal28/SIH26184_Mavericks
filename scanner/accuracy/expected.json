@@ -68,7 +68,11 @@
         {"family": "MD5"},
         {"asset_type": "certificate"},
         {"family": "TLS"},
-        {"detection_method_prefix": "binary"}
+        {"detection_method_prefix": "binary"},
+        {"family": "RS256", "file_substr": "kms_jwt_tls"},
+        {"family": "AWS-KMS", "asset_type": "cloud-service"},
+        {"family": "RC4", "file_substr": "kms_jwt_tls"},
+        {"detection_method_prefix": "sbom"}
       ]
     },
     "realistic-stack": {

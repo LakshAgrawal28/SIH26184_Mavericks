@@ -47,7 +47,7 @@ def test_narrate_mock_groq(client: TestClient, monkeypatch):
     monkeypatch.setattr(settings, "ai_narration_enabled", True)
     monkeypatch.setattr(settings, "groq_api_key", "test-key")
 
-    async def fake_groq(_messages):
+    async def fake_groq(_messages, max_tokens=1200):
         return (
             "AI-generated executive summary. The deterministic engine reported "
             "3 artefacts with 0 critical and 1 high finding."

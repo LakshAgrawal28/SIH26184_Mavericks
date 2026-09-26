@@ -1,11 +1,18 @@
 import "./globals.css";
 import type { ReactNode } from "react";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({
+const grotesk = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-grotesk",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-plex-mono",
 });
 
 export const metadata = {
@@ -15,7 +22,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={cn(inter.variable, "font-sans")}>
+    <html lang="en" className={cn(grotesk.variable, plexMono.variable, "font-sans")}>
       <body>{children}</body>
     </html>
   );

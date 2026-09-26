@@ -6,8 +6,15 @@ This document describes the deterministic risk formula in `backend/app/engines/r
 
 For each artefact:
 
-1. **Quantum vulnerability (QV)** — from `get_qv()` / `ALGORITHM_QV` in `taxonomy.py` (0 = PQC-safe, 10 = fully Shor-vulnerable asymmetric or broken primitive).
+1. **Quantum vulnerability (QV)** — from `get_qv(algorithm, primitive)` / `ALGORITHM_QV` in `taxonomy.py`. QV is **primitive-aware**: hashes, MACs, block ciphers, KDFs, AEAD, and stream ciphers never inherit Shor QV 10 unless the algorithm is actually RSA/EC. Classes in `QUANTUM_BREAK` / `get_quantum_break()`:
+   - `shor` — RSA, ECDH/ECDSA, Ed25519, X25519, DH, DSA, RS256/ES256 (~QV 10)
+   - `grover` — AES-256/GCM ~1.5, AES-128 ~3, SHA-2 ~1.5, HS256/HMAC ~2.5 (not high quantum risk)
+   - `none` — ML-KEM / ML-DSA / SLH-DSA (QV 0)
+   - `broken_classical` — MD5 ~10, SHA-1 ~8, DES/RC4, TLS 1.0/1.1 ~9
+   - `inspect` — JWT/jsonwebtoken without an alg (~QV 4)
+   - `unknown` — generic TLS ~5.5, WebCrypto / Node crypto ~4
 2. **Classical weakness** — from `get_classical_weakness()` for mode/name combinations (e.g. ECB, weak key sizes).
+3. **Use-case** — `classify_use_case()` (kem, signature, protocol, hash, mac, symmetric, kdf, library, certificate, material, unknown) drives PQC recommendations so AES/HMAC are not mapped to ML-KEM.
 
 ### Harvest-now, decrypt-later (HNDL)
 
@@ -17,7 +24,7 @@ hndl = min(hndl, 10)
 ```
 
 - **Why HNDL is weighted 60% in the final score:** Long-lived confidential data protected by asymmetric or weak crypto is the primary quantum threat in enterprise settings (harvest now, decrypt later). Operational issues matter, but timeline × exposure drives urgency for migration planning.
-- **`asym_factor = 1.5`** when `asset_type` is `algorithm` or `certificate` and `qv ≥ 8`, else `1.0`. Amplifies Shor-vulnerable public-key use where HNDL applies most.
+- **`asym_factor = 1.5` only when `quantum_break == shor`**, else `1.0`. SHA-1/MD5 can still have high QV as `broken_classical` but must not get the Shor HNDL amplifier. AES-256 HNDL stays low even at high sensitivity (typical final band MEDIUM or LOW, not CRITICAL).
 
 ### Operational risk
 
@@ -62,4 +69,4 @@ Mosca’s inequality uses **x** (data lifetime), **y** (migration time), and **z
 
 ## Unmapped algorithms (v1.1)
 
-When `canonicalize_algorithm()` does not match the taxonomy, findings still receive heuristic QV scores where applicable, but `raw_metadata.unmapped = true` is set at scan time so the UI can flag “needs manual review” instead of implying full taxonomy coverage.
+When `canonicalize_algorithm()` does not match the taxonomy, findings still receive heuristic QV scores where applicable, but `raw_metadata.unmapped = true` is set at scan time so the UI can flag “needs manual review” instead of implying full taxonomy coverage. Unmapped fallback matches **tokens** `RSA`, `ECDSA`, `ECDH`, `ED25519`, `X25519`, `DSA`, `ECDHE` — never a bare `EC` substring (which falsely matched `SecretKeySpec`). `compute_risk_detail()` exposes `qv`, `quantum_break`, and `classical` alongside the legacy 4-tuple from `compute_risk()`.

@@ -15,15 +15,34 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { API_URL, apiFetch, getToken } from "@/lib/api";
 import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
+import NarrativeMarkdown from "@/components/NarrativeMarkdown";
 import { cn } from "@/lib/utils";
+
+function quantumStyle(kind?: string) {
+  if (kind === "shor") return "bg-red-50 text-red-700";
+  if (kind === "broken_classical") return "bg-orange-50 text-orange-800";
+  if (kind === "inspect") return "bg-violet-50 text-violet-800";
+  if (kind === "grover") return "bg-sky-50 text-sky-800";
+  if (kind === "none") return "bg-emerald-50 text-emerald-700";
+  return "bg-zinc-100 text-zinc-600";
+}
+
+function quantumLabel(kind?: string) {
+  if (kind === "shor") return "Shor (public-key)";
+  if (kind === "grover") return "Grover (symmetric)";
+  if (kind === "broken_classical") return "Broken classically";
+  if (kind === "inspect") return "Inspect (not an algo)";
+  if (kind === "none") return "PQC-safe";
+  return kind || "Unknown";
+}
 
 type Tab = "overview" | "inventory" | "mosca" | "recommendations" | "assistant";
 
 function urgencyStyle(category: string) {
-  if (category === "EXPIRED") return "bg-red-50 text-red-700";
-  if (category === "URGENT") return "bg-orange-50 text-orange-700";
-  if (category === "PLAN") return "bg-amber-50 text-amber-800";
-  return "bg-emerald-50 text-emerald-700";
+  if (category === "EXPIRED") return "border border-[#B3261E] text-[#B3261E]";
+  if (category === "URGENT") return "border border-[#B3261E] text-[#B3261E]";
+  if (category === "PLAN") return "border border-[#B8781F] text-[#B8781F]";
+  return "border border-[#1B7A3D] text-[#1B7A3D]";
 }
 
 export default function ScanDetailPage() {
@@ -39,6 +58,8 @@ export default function ScanDetailPage() {
   const [moscaY, setMoscaY] = useState(4);
   const [searchTerm, setSearchTerm] = useState("");
   const [riskFilter, setRiskFilter] = useState("ALL");
+  const [typeFilter, setTypeFilter] = useState("ALL");
+  const [quantumFilter, setQuantumFilter] = useState("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cbomValidation, setCbomValidation] = useState<{
     valid: boolean;
@@ -58,6 +79,7 @@ export default function ScanDetailPage() {
     mosca?: { transition?: { label: string } };
   } | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [diffHighlight, setDiffHighlight] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ available: boolean; enabled: boolean } | null>(null);
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
@@ -73,7 +95,7 @@ export default function ScanDetailPage() {
 
   const loadCompletedData = useCallback(async () => {
     const [arts, moscaData, recData, summaryData] = await Promise.all([
-      apiFetch<{ artefacts?: Artefact[] }>(`/api/v1/scans/${id}/artefacts`),
+      apiFetch<{ artefacts?: Artefact[] }>(`/api/v1/scans/${id}/artefacts?limit=500`),
       apiFetch<MoscaResult>(`/api/v1/scans/${id}/mosca`),
       apiFetch<{ recommendations?: Recommendation[] }>(`/api/v1/scans/${id}/recommendations`),
       apiFetch<ScanSummary>(`/api/v1/scans/${id}/summary`),
@@ -203,10 +225,21 @@ export default function ScanDetailPage() {
     const msg = chatInput.trim();
     if (!msg) return;
     setChatInput("");
-    setChatMessages((prev) => [...prev, { role: "user", text: msg }]);
+    setChatMessages((prev) => {
+      const withUser = [...prev, { role: "user" as const, text: msg }];
+      return withUser;
+    });
     setChatLoading(true);
     try {
-      const body: { message: string; against_scan_id?: string } = { message: msg };
+      const history = chatMessages.slice(-6).map((m) => ({
+        role: m.role,
+        content: m.text,
+      }));
+      const body: {
+        message: string;
+        against_scan_id?: string;
+        history?: { role: string; content: string }[];
+      } = { message: msg, history };
       if (diffAgainstId.trim()) body.against_scan_id = diffAgainstId.trim();
       const data = await apiFetch<{ reply: string }>(`/api/v1/scans/${id}/chat`, {
         method: "POST",
@@ -234,6 +267,8 @@ export default function ScanDetailPage() {
         `/api/v1/scans/${id}/diff?against=${encodeURIComponent(diffAgainstId.trim())}`
       );
       setScanDiff(data);
+      setDiffHighlight(true);
+      window.setTimeout(() => setDiffHighlight(false), 2400);
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "Diff failed");
       setScanDiff(null);
@@ -263,15 +298,24 @@ export default function ScanDetailPage() {
 
   const filteredArtefacts = useMemo(() => {
     return artefacts.filter((a) => {
+      const q = searchTerm.toLowerCase();
       const matchesSearch =
-        a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (a.file_path && a.file_path.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (a.recommendation?.action &&
-          a.recommendation.action.toLowerCase().includes(searchTerm.toLowerCase()));
+        a.name.toLowerCase().includes(q) ||
+        (a.file_path && a.file_path.toLowerCase().includes(q)) ||
+        (a.algorithm && a.algorithm.toLowerCase().includes(q)) ||
+        (a.recommendation?.action && a.recommendation.action.toLowerCase().includes(q));
       const matchesRisk = riskFilter === "ALL" || a.risk.risk_band === riskFilter;
-      return matchesSearch && matchesRisk;
+      const matchesType = typeFilter === "ALL" || a.asset_type === typeFilter;
+      const qb = a.risk.quantum_break || a.raw_metadata?.quantum_break || "unknown";
+      const matchesQuantum = quantumFilter === "ALL" || qb === quantumFilter;
+      return matchesSearch && matchesRisk && matchesType && matchesQuantum;
     });
-  }, [artefacts, searchTerm, riskFilter]);
+  }, [artefacts, searchTerm, riskFilter, typeFilter, quantumFilter]);
+
+  const assetTypeOptions = useMemo(() => {
+    const set = new Set(artefacts.map((a) => a.asset_type).filter(Boolean));
+    return ["ALL", ...Array.from(set).sort()];
+  }, [artefacts]);
 
   const maxRisk = useMemo(() => {
     if (artefacts.length === 0) return 0;
@@ -337,10 +381,10 @@ export default function ScanDetailPage() {
               {cbomValidation && (
                 <span
                   className={cn(
-                    "rounded-md px-2 py-0.5 text-xs font-medium",
+                    " border px-2 py-0.5 text-xs font-medium",
                     cbomValidation.valid
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-red-50 text-red-700"
+                      ? "border-[#1B7A3D] text-[#1B7A3D]"
+                      : "border-[#B3261E] text-[#B3261E]"
                   )}
                 >
                   CBOM {cbomValidation.valid ? "valid 1.6" : "invalid"}
@@ -361,18 +405,26 @@ export default function ScanDetailPage() {
         <StatCard label="Critical" value={scan.critical_risk_count ?? 0} dot="critical" />
         <StatCard label="High" value={scan.high_risk_count ?? 0} dot="high" />
       </div>
+      {scan.status === "completed" && summary && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Shor-vulnerable" value={summary.shor_vulnerable_count ?? 0} dot="critical" />
+          <StatCard label="Classical hygiene" value={summary.classical_hygiene_count ?? 0} dot="high" />
+          <StatCard label="HSM / cloud KMS" value={summary.hsm_cloud_count ?? 0} />
+          <StatCard label="Crypto libraries" value={summary.library_count ?? 0} />
+        </div>
+      )}
 
       {scan.status !== "completed" && scan.status !== "failed" && (
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-100">
+        <div className="relative mt-4 h-px bg-border">
           <div
-            className="h-full rounded-full bg-indigo-600 transition-all duration-150"
+            className="absolute left-0 top-0 h-px bg-[#1B4B8C] transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mt-8 gap-6">
-        <TabsList variant="line" className="h-auto w-full justify-start rounded-none border-b border-zinc-200 bg-transparent p-0">
+        <TabsList variant="line" className="h-auto w-full justify-start rounded-none border-b border-border bg-transparent p-0">
           <TabsTrigger value="overview" className="px-4 py-2.5">Overview</TabsTrigger>
           <TabsTrigger value="inventory" className="px-4 py-2.5">Artefacts</TabsTrigger>
           <TabsTrigger value="mosca" className="px-4 py-2.5">Mosca</TabsTrigger>
@@ -382,58 +434,99 @@ export default function ScanDetailPage() {
 
         <TabsContent value="overview">
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h3 className="text-sm font-semibold text-zinc-900">Scan summary</h3>
+            <div className="panel p-6">
+              <h3 className="text-sm font-semibold text-foreground">Scan summary</h3>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Target type</dt>
-                  <dd className="font-medium text-zinc-900">{scan.target_type}</dd>
+                  <dt className="text-ink-muted">Target type</dt>
+                  <dd className="font-medium text-foreground">{scan.target_type}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Files scanned</dt>
-                  <dd className="font-medium text-zinc-900">{scan.total_files ?? "—"}</dd>
+                  <dt className="text-ink-muted">Files scanned</dt>
+                  <dd className="font-medium text-foreground">{scan.total_files ?? "—"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Total artefacts</dt>
-                  <dd className="font-medium text-zinc-900">{scan.total_artefacts ?? 0}</dd>
+                  <dt className="text-ink-muted">Total artefacts</dt>
+                  <dd className="font-medium text-foreground">{scan.total_artefacts ?? 0}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Created</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-ink-muted">Created</dt>
+                  <dd className="font-medium text-foreground">
                     {scan.created_at ? new Date(scan.created_at).toLocaleString() : "—"}
                   </dd>
                 </div>
                 {summary?.layers_present && summary.layers_present.length > 0 && (
                   <div>
-                    <dt className="text-zinc-500">Detector layers</dt>
-                    <dd className="mt-1 font-medium text-zinc-900">
+                    <dt className="text-ink-muted">Detector layers</dt>
+                    <dd className="mt-1 font-medium text-foreground">
                       {summary.layers_present.join(" · ")}
                     </dd>
                   </div>
                 )}
                 {cbomValidation && (
                   <div className="flex justify-between">
-                    <dt className="text-zinc-500">CycloneDX 1.6</dt>
-                    <dd className={cn("font-medium", cbomValidation.valid ? "text-emerald-600" : "text-red-600")}>
+                    <dt className="text-ink-muted">CycloneDX 1.6</dt>
+                    <dd className={cn("font-medium", cbomValidation.valid ? "text-[#1B7A3D]" : "text-[#B3261E]")}>
                       {cbomValidation.valid ? "Valid" : `Invalid (${cbomValidation.error_count} errors)`}
                     </dd>
                   </div>
                 )}
               </dl>
               {scan.error_message && (
-                <p className="mt-4 text-sm text-red-600">{scan.error_message}</p>
+                <p className="mt-4 text-sm text-[#B3261E]">{scan.error_message}</p>
               )}
             </div>
             {summary && scan.status === "completed" && (
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="panel p-6">
                 <RiskDistribution distribution={summary.risk_distribution} total={riskTotal} />
               </div>
             )}
           </div>
+          {scan.status === "completed" && summary && (
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <div className="panel p-6">
+                <h3 className="text-sm font-semibold text-foreground">Quantum class (not all crypto is Shor)</h3>
+                <p className="mt-1 text-sm text-ink-muted">
+                  AES and HMAC are Grover-only. JWT packages are inspected, not scored as RSA. Public-key
+                  (RSA/ECDH/ECDSA) is the harvest-now-decrypt-later set.
+                </p>
+                <ul className="mt-4 space-y-2 text-sm">
+                  {Object.entries(summary.quantum_classes || {})
+                    .filter(([, n]) => n > 0)
+                    .map(([k, n]) => (
+                      <li key={k} className="flex items-center justify-between">
+                        <span className={cn("border px-2 py-0.5 text-xs font-medium", quantumStyle(k))}>
+                          {quantumLabel(k)}
+                        </span>
+                        <span className="font-medium tabular-nums text-foreground">{n}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+              <div className="panel p-6">
+                <h3 className="text-sm font-semibold text-foreground">Asset mix</h3>
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  {Object.entries(summary.asset_types || {}).map(([k, n]) => (
+                    <div key={k} className="flex justify-between gap-2 border border-border px-3 py-2">
+                      <dt className="capitalize text-ink-muted">{k}</dt>
+                      <dd className="font-medium text-foreground">{n}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {summary.suggested_data_lifetime_x != null && (
+                  <p className="mt-4 text-sm text-ink-muted">
+                    Certificates imply remaining validity of{" "}
+                    <span className="font-semibold text-foreground">{summary.suggested_data_lifetime_x}y</span>
+                    . Hint for Mosca X — it does not overwrite your data-lifetime slider.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           {scan.status === "completed" && (
-            <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h3 className="text-sm font-semibold text-zinc-900">Compare to another scan</h3>
-              <p className="mt-1 text-sm text-zinc-500">
+            <div className="mt-6 panel p-6">
+              <h3 className="text-sm font-semibold text-foreground">Compare to another scan</h3>
+              <p className="mt-1 text-sm text-ink-muted">
                 Enter a baseline scan ID to see added/removed artefacts and Mosca category change.
               </p>
               <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -452,29 +545,34 @@ export default function ScanDetailPage() {
                 </Button>
               </div>
               {scanDiff?.counts && (
-                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <dl
+                  className={cn(
+                    "mt-4 grid gap-3 border border-transparent p-3 text-sm transition-colors duration-500 sm:grid-cols-2 lg:grid-cols-4",
+                    diffHighlight && "border-[#1B4B8C] bg-surface"
+                  )}
+                >
                   <div>
-                    <dt className="text-zinc-500">Added</dt>
-                    <dd className="font-semibold text-zinc-900">{scanDiff.counts.added}</dd>
+                    <dt className="text-ink-muted">Added</dt>
+                    <dd className="font-semibold text-foreground">{scanDiff.counts.added}</dd>
                   </div>
                   <div>
-                    <dt className="text-zinc-500">Removed</dt>
-                    <dd className="font-semibold text-zinc-900">{scanDiff.counts.removed}</dd>
+                    <dt className="text-ink-muted">Removed</dt>
+                    <dd className="font-semibold text-foreground">{scanDiff.counts.removed}</dd>
                   </div>
                   <div>
-                    <dt className="text-zinc-500">Risk band changed</dt>
-                    <dd className="font-semibold text-zinc-900">{scanDiff.counts.risk_band_changed}</dd>
+                    <dt className="text-ink-muted">Risk band changed</dt>
+                    <dd className="font-semibold text-foreground">{scanDiff.counts.risk_band_changed}</dd>
                   </div>
                   <div>
-                    <dt className="text-zinc-500">Critical</dt>
-                    <dd className="font-semibold text-zinc-900">
+                    <dt className="text-ink-muted">Critical</dt>
+                    <dd className="font-semibold text-foreground">
                       {scanDiff.counts.critical_before} → {scanDiff.counts.critical_after}
                     </dd>
                   </div>
                 </dl>
               )}
               {scanDiff?.mosca?.transition?.label && (
-                <p className="mt-3 text-sm font-medium text-indigo-700">
+                <p className="mt-3 text-sm font-medium text-[#1B4B8C]">
                   Mosca: {scanDiff.mosca.transition.label}
                 </p>
               )}
@@ -483,8 +581,8 @@ export default function ScanDetailPage() {
         </TabsContent>
 
         <TabsContent value="inventory">
-          <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <div className="flex flex-wrap gap-3 border-b border-zinc-200 p-4">
+          <div className="panel">
+            <div className="flex flex-wrap gap-3 border-b border-border p-4">
               <Input
                 placeholder="Search artefacts…"
                 value={searchTerm}
@@ -494,7 +592,7 @@ export default function ScanDetailPage() {
               <select
                 value={riskFilter}
                 onChange={(e) => setRiskFilter(e.target.value)}
-                className="h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-700"
+                className="h-10 bg-surface border border-border bg-white px-3 text-sm text-ink-muted"
               >
                 <option value="ALL">All risks</option>
                 <option value="CRITICAL">Critical</option>
@@ -502,10 +600,34 @@ export default function ScanDetailPage() {
                 <option value="MEDIUM">Medium</option>
                 <option value="LOW">Low</option>
               </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="h-10 bg-surface border border-border bg-white px-3 text-sm text-ink-muted"
+              >
+                {assetTypeOptions.map((t) => (
+                  <option key={t} value={t}>
+                    {t === "ALL" ? "All types" : t}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={quantumFilter}
+                onChange={(e) => setQuantumFilter(e.target.value)}
+                className="h-10 bg-surface border border-border bg-white px-3 text-sm text-ink-muted"
+              >
+                <option value="ALL">All quantum classes</option>
+                <option value="shor">Shor (public-key)</option>
+                <option value="grover">Grover (symmetric)</option>
+                <option value="broken_classical">Broken classically</option>
+                <option value="inspect">Inspect</option>
+                <option value="none">PQC-safe</option>
+                <option value="unknown">Unknown</option>
+              </select>
             </div>
 
             {filteredArtefacts.length === 0 ? (
-              <p className="px-6 py-12 text-center text-sm text-zinc-500">
+              <p className="px-6 py-12 text-center text-sm text-ink-muted">
                 {scan.status === "completed"
                   ? "No matching artefacts found."
                   : "Inventory available after scan completes."}
@@ -514,60 +636,108 @@ export default function ScanDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 text-left">
-                      <th className="px-5 py-3 text-xs font-medium text-zinc-500">Name</th>
-                      <th className="px-5 py-3 text-xs font-medium text-zinc-500">Type</th>
-                      <th className="px-5 py-3 text-xs font-medium text-zinc-500">Risk</th>
-                      <th className="px-5 py-3 text-xs font-medium text-zinc-500">Location</th>
-                      <th className="px-5 py-3 text-xs font-medium text-zinc-500">Action</th>
+                    <tr className="border-b border-border text-left">
+                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Name</th>
+                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Type</th>
+                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Quantum</th>
+                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Risk</th>
+                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Location</th>
+                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredArtefacts.map((a) => {
                       const open = expandedId === a.artefact_id;
+                      const qb = String(a.risk.quantum_break || a.raw_metadata?.quantum_break || "unknown");
                       return (
                         <Fragment key={a.artefact_id}>
                           <tr
-                            className="cursor-pointer border-b border-zinc-100 transition-colors duration-150 hover:bg-zinc-50"
+                            className="cursor-pointer border-b border-border transition-colors duration-150 hover:bg-surface"
                             onClick={() => setExpandedId(open ? null : a.artefact_id)}
                           >
-                            <td className="px-5 py-3.5 font-medium text-zinc-900">{a.name}</td>
-                            <td className="px-5 py-3.5 capitalize text-zinc-600">{a.asset_type}</td>
+                            <td className="px-5 py-3.5 font-medium text-foreground">{a.name}</td>
+                            <td className="px-5 py-3.5 capitalize text-ink-muted">{a.asset_type}</td>
+                            <td className="px-5 py-3.5">
+                              <span className={cn("border px-2 py-0.5 text-[10px] font-medium uppercase", quantumStyle(qb))}>
+                                {qb.replace("_", " ")}
+                              </span>
+                            </td>
                             <td className="px-5 py-3.5">
                               <RiskBadge band={a.risk.risk_band} score={a.risk.final_score} />
                             </td>
-                            <td className="max-w-xs truncate px-5 py-3.5 text-zinc-500">
+                            <td className="max-w-xs truncate px-5 py-3.5 text-ink-muted">
                               {a.file_path}
                               {a.line_number ? `:${a.line_number}` : ""}
                             </td>
-                            <td className="px-5 py-3.5 text-zinc-600">
+                            <td className="px-5 py-3.5 text-ink-muted">
                               {a.recommendation?.action ?? "—"}
                             </td>
                           </tr>
                           {open && (
-                            <tr className="bg-zinc-50">
-                              <td colSpan={5} className="px-5 py-4">
+                            <tr className="bg-surface">
+                              <td colSpan={6} className="px-5 py-4">
                                 <div className="grid gap-4 sm:grid-cols-3 text-sm">
                                   <div>
-                                    <p className="text-xs text-zinc-500">HNDL risk</p>
-                                    <p className="font-medium text-zinc-900">{a.risk.hndl_risk ?? 0} / 10</p>
+                                    <p className="text-xs text-ink-muted">HNDL risk</p>
+                                    <p className="font-medium text-foreground">{a.risk.hndl_risk ?? 0} / 10</p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-zinc-500">Operational risk</p>
-                                    <p className="font-medium text-zinc-900">{a.risk.operational_risk ?? 0} / 10</p>
+                                    <p className="text-xs text-ink-muted">Operational risk</p>
+                                    <p className="font-medium text-foreground">{a.risk.operational_risk ?? 0} / 10</p>
                                   </div>
                                   <div>
-                                    <p className="text-xs text-zinc-500">PQC urgency</p>
-                                    <p className="font-medium text-zinc-900">
+                                    <p className="text-xs text-ink-muted">PQC urgency</p>
+                                    <p className="font-medium text-foreground">
                                       {a.recommendation?.timeline_urgency ?? "MONITORING"}
                                     </p>
                                   </div>
+                                  {a.primitive && (
+                                    <div>
+                                      <p className="text-xs text-ink-muted">Primitive</p>
+                                      <p className="font-medium text-foreground">{a.primitive}</p>
+                                    </div>
+                                  )}
+                                  {a.algorithm && (
+                                    <div>
+                                      <p className="text-xs text-ink-muted">Algorithm</p>
+                                      <p className="font-medium text-foreground">{a.algorithm}</p>
+                                    </div>
+                                  )}
+                                  {(a.library_name || a.raw_metadata?.purl) && (
+                                    <div>
+                                      <p className="text-xs text-ink-muted">Library / PURL</p>
+                                      <p className="font-medium text-foreground">
+                                        {a.raw_metadata?.purl ||
+                                          `${a.library_name || ""}${a.library_version ? `@${a.library_version}` : ""}`}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {a.raw_metadata?.jwt_alg != null && (
+                                    <div>
+                                      <p className="text-xs text-ink-muted">JWT alg</p>
+                                      <p className="font-medium text-foreground">{String(a.raw_metadata.jwt_alg)}</p>
+                                    </div>
+                                  )}
+                                  {a.raw_metadata?.cloud_provider != null && (
+                                    <div>
+                                      <p className="text-xs text-ink-muted">Cloud / HSM</p>
+                                      <p className="font-medium text-foreground">
+                                        {String(a.raw_metadata.cloud_provider)}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {a.raw_metadata?.unmapped ? (
+                                    <div>
+                                      <p className="text-xs text-ink-muted">Taxonomy</p>
+                                      <p className="font-medium text-foreground">Unmapped — review manually</p>
+                                    </div>
+                                  ) : null}
                                 </div>
                                 {a.recommendation?.rationale && (
-                                  <p className="mt-3 text-sm text-zinc-600">{a.recommendation.rationale}</p>
+                                  <p className="mt-3 text-sm text-ink-muted">{a.recommendation.rationale}</p>
                                 )}
                                 {a.evidence_snippet && (
-                                  <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-3 text-xs text-zinc-700">
+                                  <pre className="mt-3 overflow-x-auto bg-surface border border-border bg-white p-3 text-xs text-ink-muted">
                                     {a.evidence_snippet}
                                   </pre>
                                 )}
@@ -585,37 +755,64 @@ export default function ScanDetailPage() {
         </TabsContent>
 
         <TabsContent value="mosca">
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="panel p-6">
             {!mosca ? (
-              <p className="text-sm text-zinc-500">Mosca analysis available after scan completes.</p>
+              <p className="text-sm text-ink-muted">Mosca analysis available after scan completes.</p>
             ) : (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">Mosca theorem</h3>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <h3 className="text-sm font-semibold text-foreground">Mosca theorem</h3>
+                  <p className="mt-1 text-sm text-ink-muted">
                     Adjust X and Y to model data lifetime and migration time against CRQC scenarios.
                   </p>
                   {mosca.formula && (
-                    <code className="mt-3 block rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                    <code className="mt-3 block bg-surface border border-border bg-surface px-3 py-2 text-xs text-ink-muted">
                       {mosca.formula}
                     </code>
                   )}
+                  {mosca.data_lifetime_note && (
+                    <p className="mt-2 text-sm text-ink-muted">{mosca.data_lifetime_note}</p>
+                  )}
+                  {(mosca.suggested_data_lifetime_x != null || mosca.cert_count) ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                      <span className="text-ink-muted">
+                        {mosca.cert_count ?? 0} certificate(s)
+                        {mosca.suggested_data_lifetime_x != null
+                          ? ` · remaining validity ~${mosca.suggested_data_lifetime_x}y`
+                          : ""}
+                      </span>
+                      {mosca.suggested_data_lifetime_x != null && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setMoscaX(
+                              Math.max(1, Math.min(30, Math.round(Number(mosca.suggested_data_lifetime_x))))
+                            )
+                          }
+                        >
+                          Use as X
+                        </Button>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="panel-muted p-4">
                     <div className="flex items-center justify-between">
                       <Label>Data lifetime (X)</Label>
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                      <span className="font-mono border border-border px-2 py-0.5 text-xs text-[#1B4B8C]">
                         {moscaX}y
                       </span>
                     </div>
                     <Slider className="mt-3" min={1} max={30} step={1} value={[moscaX]} onValueChange={(v) => setMoscaX(v[0] ?? 10)} />
                   </div>
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="panel-muted p-4">
                     <div className="flex items-center justify-between">
                       <Label>Migration time (Y)</Label>
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                      <span className="font-mono border border-border px-2 py-0.5 text-xs text-[#1B4B8C]">
                         {moscaY}y
                       </span>
                     </div>
@@ -623,14 +820,14 @@ export default function ScanDetailPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 panel-muted p-4">
                   <div>
-                    <p className="text-xs text-zinc-500">X + Y needed</p>
-                    <p className="text-2xl font-semibold tabular-nums text-zinc-900">{moscaX + moscaY} years</p>
+                    <p className="text-xs text-ink-muted">X + Y needed</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground">{moscaX + moscaY} years</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-zinc-500">Baseline verdict</p>
-                    <span className={cn("mt-1 inline-flex rounded-md px-2 py-0.5 text-xs font-medium", urgencyStyle(headlineCategory))}>
+                    <p className="text-xs text-ink-muted">Baseline verdict</p>
+                    <span className={cn("mt-1 inline-flex  border px-2 py-0.5 text-xs font-medium", urgencyStyle(headlineCategory))}>
                       {headlineCategory}
                     </span>
                   </div>
@@ -639,26 +836,26 @@ export default function ScanDetailPage() {
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-zinc-200">
+                <div className="overflow-x-auto border border-border">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                        <th className="px-4 py-3 text-xs font-medium text-zinc-500">Scenario</th>
-                        <th className="px-4 py-3 text-xs font-medium text-zinc-500">Z (years)</th>
-                        <th className="px-4 py-3 text-xs font-medium text-zinc-500">Margin</th>
-                        <th className="px-4 py-3 text-xs font-medium text-zinc-500">Rating</th>
+                      <tr className="border-b border-border bg-surface text-left">
+                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Scenario</th>
+                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Z (years)</th>
+                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Margin</th>
+                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Rating</th>
                       </tr>
                     </thead>
                     <tbody>
                       {clientScenarios.map((s) => (
-                        <tr key={s.name} className="border-b border-zinc-100 last:border-0">
-                          <td className="px-4 py-3 font-medium text-zinc-900">{s.name}</td>
-                          <td className="px-4 py-3 text-zinc-600">{s.z_value}</td>
-                          <td className={cn("px-4 py-3 font-medium", s.margin < 0 ? "text-red-600" : "text-emerald-600")}>
+                        <tr key={s.name} className="border-b border-border last:border-0">
+                          <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
+                          <td className="px-4 py-3 text-ink-muted">{s.z_value}</td>
+                          <td className={cn("px-4 py-3 font-medium", s.margin < 0 ? "text-[#B3261E]" : "text-[#1B7A3D]")}>
                             {s.margin < 0 ? `-${Math.abs(s.margin)}y` : `+${s.margin}y`}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", urgencyStyle(s.category))}>
+                            <span className={cn(" border px-2 py-0.5 text-xs font-medium", urgencyStyle(s.category))}>
                               {s.category}
                             </span>
                           </td>
@@ -674,8 +871,8 @@ export default function ScanDetailPage() {
 
         <TabsContent value="recommendations">
           {recs.length === 0 ? (
-            <div className="rounded-xl border border-zinc-200 bg-white px-6 py-12 text-center shadow-sm">
-              <p className="text-sm text-zinc-500">
+            <div className="panel px-6 py-12 text-left">
+              <p className="text-sm text-ink-muted">
                 {scan.status === "completed"
                   ? "No migration actions for this scan."
                   : "Recommendations available after scan completes."}
@@ -683,46 +880,68 @@ export default function ScanDetailPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="panel p-4 text-sm text-ink-muted">
+                ECDAT does not replace AES with ML-KEM. Symmetric crypto stays AES-256-GCM; public-key
+                key-exchange uses ML-KEM (FIPS 203); signatures use ML-DSA (FIPS 204). JWT libraries
+                are inspected for <code className="font-mono text-xs">alg</code>, not treated as RSA by default.
+              </div>
               {recs.map((r) => (
                 <div
                   key={r.artefact_id}
-                  className="rounded-xl border border-zinc-200 border-l-4 border-l-indigo-500 bg-white p-5 shadow-sm"
+                  className="border border-border border-l-4 border-l-[#1B4B8C] bg-background p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h4 className="font-semibold text-zinc-900">{r.name}</h4>
-                      <p className="mt-0.5 font-mono text-xs text-zinc-400">{r.artefact_id}</p>
+                      <h4 className="font-semibold text-foreground">{r.name}</h4>
+                      <p className="mt-0.5 font-mono text-xs text-ink-muted">{r.artefact_id}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {r.quantum_break && (
+                          <span className={cn("border px-2 py-0.5 text-[10px] font-medium uppercase", quantumStyle(r.quantum_break))}>
+                            {r.quantum_break.replace("_", " ")}
+                          </span>
+                        )}
+                        {r.primitive && (
+                          <span className="border border-border px-2 py-0.5 text-[10px] uppercase text-ink-muted">
+                            {r.primitive}
+                          </span>
+                        )}
+                        {r.algorithm && (
+                          <span className="border border-border px-2 py-0.5 font-mono text-[10px] text-ink-muted">
+                            {r.algorithm}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <StatusBadge status={r.effort === "Low" ? "completed" : r.effort === "Medium" ? "running" : "failed"} />
                   </div>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
                     <div>
-                      <p className="text-xs text-zinc-500">Action</p>
-                      <p className="mt-0.5 font-medium text-zinc-900">{r.action || "Review"}</p>
+                      <p className="text-xs text-ink-muted">Action</p>
+                      <p className="mt-0.5 font-medium text-foreground">{r.action || "Review"}</p>
                     </div>
                     {r.primary_pqc && (
                       <div>
-                        <p className="text-xs text-zinc-500">PQC standard</p>
-                        <p className="mt-0.5 font-medium text-zinc-900">
+                        <p className="text-xs text-ink-muted">PQC standard</p>
+                        <p className="mt-0.5 font-medium text-foreground">
                           {r.primary_pqc} {r.nist_standard ? `(${r.nist_standard})` : ""}
                         </p>
                       </div>
                     )}
                     {r.hybrid_pair && (
                       <div>
-                        <p className="text-xs text-zinc-500">Hybrid</p>
-                        <p className="mt-0.5 font-medium text-zinc-900">{r.hybrid_pair}</p>
+                        <p className="text-xs text-ink-muted">Hybrid</p>
+                        <p className="mt-0.5 font-medium text-foreground">{r.hybrid_pair}</p>
                       </div>
                     )}
                     {r.timeline_urgency && (
                       <div>
-                        <p className="text-xs text-zinc-500">Urgency</p>
-                        <p className="mt-0.5 font-medium text-zinc-900">{r.timeline_urgency}</p>
+                        <p className="text-xs text-ink-muted">Urgency</p>
+                        <p className="mt-0.5 font-medium text-foreground">{r.timeline_urgency}</p>
                       </div>
                     )}
                   </div>
                   {r.rationale && (
-                    <p className="mt-4 border-t border-zinc-100 pt-4 text-sm text-zinc-600">{r.rationale}</p>
+                    <p className="mt-4 border-t border-border pt-4 text-sm text-ink-muted">{r.rationale}</p>
                   )}
                 </div>
               ))}
@@ -731,30 +950,30 @@ export default function ScanDetailPage() {
         </TabsContent>
 
         <TabsContent value="assistant">
-          <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 text-sm text-violet-900">
+          <div className="border border-border bg-surface p-4 text-sm text-foreground">
             <p className="font-medium">AI-generated narration (Groq)</p>
-            <p className="mt-1 text-violet-800/90">
+            <p className="mt-1 text-ink-muted">
               Summaries and chat use only deterministic scan data. Artefacts, scores, and CBOM export
               remain authoritative. Detection is never performed by the model.
             </p>
           </div>
 
           {aiStatus && !aiStatus.available && (
-            <p className="mt-4 text-sm text-zinc-600">
-              Assistant is off. Enable <code className="rounded bg-zinc-100 px-1">AI_NARRATION_ENABLED</code> and
-              set <code className="rounded bg-zinc-100 px-1">GROQ_API_KEY</code> on the API server.
+            <p className="mt-4 text-sm text-ink-muted">
+              Assistant is off. Enable <code className="border border-border bg-surface px-1 font-mono text-xs">AI_NARRATION_ENABLED</code> and
+              set <code className="border border-border bg-surface px-1 font-mono text-xs">GROQ_API_KEY</code> on the API server.
             </p>
           )}
 
           {scan.status !== "completed" && (
-            <p className="mt-4 text-sm text-zinc-500">Available after the scan completes.</p>
+            <p className="mt-4 text-sm text-ink-muted">Available after the scan completes.</p>
           )}
 
           {scan.status === "completed" && aiStatus?.available && (
             <div className="mt-6 space-y-6">
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="panel p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-zinc-900">Executive summary</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Executive summary</h3>
                   <Button
                     type="button"
                     variant="outline"
@@ -765,32 +984,34 @@ export default function ScanDetailPage() {
                     {narrativeLoading ? "Generating…" : "Generate summary"}
                   </Button>
                 </div>
-                {narrative && (
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{narrative}</p>
-                )}
+                {narrative && <NarrativeMarkdown content={narrative} />}
               </div>
 
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-zinc-900">Ask about this scan</h3>
-                <p className="mt-1 text-xs text-zinc-500">
+              <div className="panel p-6">
+                <h3 className="text-sm font-semibold text-foreground">Ask about this scan</h3>
+                <p className="mt-1 text-xs text-ink-muted">
                   If a baseline scan ID is set on Overview, chat includes the deterministic diff.
                 </p>
-                <div className="mt-4 max-h-64 space-y-3 overflow-y-auto">
+                <div className="mt-4 max-h-80 space-y-3 overflow-y-auto overflow-x-hidden">
                   {chatMessages.length === 0 && (
-                    <p className="text-sm text-zinc-400">e.g. “What are the top quantum risks?”</p>
+                    <p className="text-sm text-ink-muted">e.g. “What are the top quantum risks?”</p>
                   )}
                   {chatMessages.map((m, i) => (
                     <div
                       key={i}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm",
-                        m.role === "user" ? "bg-indigo-50 text-indigo-950" : "bg-zinc-50 text-zinc-800"
+                        "min-w-0 border px-3 py-2 text-sm",
+                        m.role === "user" ? "border border-[#1B4B8C] bg-surface text-foreground" : "border border-border bg-surface text-foreground"
                       )}
                     >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      <span className="text-[10px] font-semibold text-ink-muted">
                         {m.role === "user" ? "You" : "AI (Groq)"}
                       </span>
-                      <p className="mt-1 whitespace-pre-wrap">{m.text}</p>
+                      {m.role === "assistant" ? (
+                        <NarrativeMarkdown content={m.text} compact className="mt-1" />
+                      ) : (
+                        <p className="mt-1 whitespace-pre-wrap text-foreground">{m.text}</p>
+                      )}
                     </div>
                   ))}
                 </div>
