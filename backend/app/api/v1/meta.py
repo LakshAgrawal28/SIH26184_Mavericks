@@ -29,7 +29,7 @@ def corpus_accuracy():
     return measure_corpus()
 
 
-@router.get("/ai")
+@router.get("/meta/ai")
 def ai_narration_status():
     """Whether optional Groq narration is enabled (feature-flagged; off by default)."""
     return {
