@@ -3,6 +3,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from app.config import settings
+from app.services.ai_narration import ai_narration_enabled
 from scanner.accuracy.measure import measure_corpus
 from scanner.detectors.semgrep_detector import rules_dir, semgrep_available
 
@@ -25,6 +27,18 @@ _CORPUS_ARCHIVE_DIR = (
 def corpus_accuracy():
     """Published, deterministic detector accuracy against the labelled corpus."""
     return measure_corpus()
+
+
+@router.get("/ai")
+def ai_narration_status():
+    """Whether optional Groq narration is enabled (feature-flagged; off by default)."""
+    return {
+        "enabled": settings.ai_narration_enabled,
+        "available": ai_narration_enabled(),
+        "provider": "groq",
+        "model": settings.groq_model if ai_narration_enabled() else None,
+        "disclaimer": "Narration does not affect detection, scoring, or CBOM export.",
+    }
 
 
 @router.get("/detectors")

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     scan_work_dir: str = "/tmp/ecdat-scans"
     sync_scan: bool = False  # set SYNC_SCAN=true for local dev without Celery worker
 
+    ai_narration_enabled: bool = False
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]

@@ -35,6 +35,7 @@ class Scan(Base):
     current_stage: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_lifetime_x: Mapped[float] = mapped_column(Float, default=10.0)
+    suggested_data_lifetime_x: Mapped[float | None] = mapped_column(Float, nullable=True)
     migration_time_y: Mapped[float] = mapped_column(Float, default=4.0)
     sensitivity_score: Mapped[int] = mapped_column(Integer, default=7)
     exposure_score: Mapped[int] = mapped_column(Integer, default=7)

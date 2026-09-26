@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.v1 import auth, meta, reports, scans
+from app.api.v1 import auth, meta, narration, reports, scans
 from app.config import settings
 from app.core.security import ensure_default_admin
 from app.corpus_bootstrap import ensure_quick_start_archives
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ECDAT API", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="ECDAT API", version="2.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +38,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
+app.include_router(narration.router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")
 app.include_router(meta.router, prefix="/api/v1")
 

@@ -39,10 +39,17 @@ class ArtefactOut(BaseModel):
     name: str
     asset_type: str
     algorithm: str | None = None
+    primitive: str | None = None
+    library_name: str | None = None
+    library_version: str | None = None
+    mode: str | None = None
+    key_size: str | None = None
     file_path: str | None = None
     line_number: int | None = None
     confidence: float
     evidence_snippet: str | None = None
+    detection_method: str | None = None
+    raw_metadata: dict | None = None
     risk: dict
     recommendation: dict
 

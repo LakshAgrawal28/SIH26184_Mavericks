@@ -17,7 +17,7 @@ import { API_URL, apiFetch, getToken } from "@/lib/api";
 import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Tab = "overview" | "inventory" | "mosca" | "recommendations";
+type Tab = "overview" | "inventory" | "mosca" | "recommendations" | "assistant";
 
 function urgencyStyle(category: string) {
   if (category === "EXPIRED") return "bg-red-50 text-red-700";
@@ -58,6 +58,18 @@ export default function ScanDetailPage() {
     mosca?: { transition?: { label: string } };
   } | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ available: boolean; enabled: boolean } | null>(null);
+  const [narrative, setNarrative] = useState<string | null>(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ available: boolean; enabled: boolean }>("/api/v1/meta/ai")
+      .then(setAiStatus)
+      .catch(() => setAiStatus({ available: false, enabled: false }));
+  }, []);
 
   const loadCompletedData = useCallback(async () => {
     const [arts, moscaData, recData, summaryData] = await Promise.all([
@@ -169,6 +181,48 @@ export default function ScanDetailPage() {
       window.alert(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setMoscaSaving(false);
+    }
+  }
+
+  async function runExecutiveNarrative() {
+    setNarrativeLoading(true);
+    try {
+      const data = await apiFetch<{ narrative: string; disclaimer?: string }>(
+        `/api/v1/scans/${id}/narrate`,
+        { method: "POST", body: JSON.stringify({ style: "executive" }) }
+      );
+      setNarrative(data.narrative);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Narration unavailable");
+    } finally {
+      setNarrativeLoading(false);
+    }
+  }
+
+  async function sendAssistantMessage() {
+    const msg = chatInput.trim();
+    if (!msg) return;
+    setChatInput("");
+    setChatMessages((prev) => [...prev, { role: "user", text: msg }]);
+    setChatLoading(true);
+    try {
+      const body: { message: string; against_scan_id?: string } = { message: msg };
+      if (diffAgainstId.trim()) body.against_scan_id = diffAgainstId.trim();
+      const data = await apiFetch<{ reply: string }>(`/api/v1/scans/${id}/chat`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setChatMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+    } catch (err) {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: err instanceof Error ? err.message : "Assistant unavailable",
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -323,6 +377,7 @@ export default function ScanDetailPage() {
           <TabsTrigger value="inventory" className="px-4 py-2.5">Artefacts</TabsTrigger>
           <TabsTrigger value="mosca" className="px-4 py-2.5">Mosca</TabsTrigger>
           <TabsTrigger value="recommendations" className="px-4 py-2.5">Recommendations</TabsTrigger>
+          <TabsTrigger value="assistant" className="px-4 py-2.5">Assistant</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -671,6 +726,91 @@ export default function ScanDetailPage() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="assistant">
+          <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 text-sm text-violet-900">
+            <p className="font-medium">AI-generated narration (Groq)</p>
+            <p className="mt-1 text-violet-800/90">
+              Summaries and chat use only deterministic scan data. Artefacts, scores, and CBOM export
+              remain authoritative. Detection is never performed by the model.
+            </p>
+          </div>
+
+          {aiStatus && !aiStatus.available && (
+            <p className="mt-4 text-sm text-zinc-600">
+              Assistant is off. Enable <code className="rounded bg-zinc-100 px-1">AI_NARRATION_ENABLED</code> and
+              set <code className="rounded bg-zinc-100 px-1">GROQ_API_KEY</code> on the API server.
+            </p>
+          )}
+
+          {scan.status !== "completed" && (
+            <p className="mt-4 text-sm text-zinc-500">Available after the scan completes.</p>
+          )}
+
+          {scan.status === "completed" && aiStatus?.available && (
+            <div className="mt-6 space-y-6">
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-zinc-900">Executive summary</h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={narrativeLoading}
+                    onClick={runExecutiveNarrative}
+                  >
+                    {narrativeLoading ? "Generating…" : "Generate summary"}
+                  </Button>
+                </div>
+                {narrative && (
+                  <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{narrative}</p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-zinc-900">Ask about this scan</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  If a baseline scan ID is set on Overview, chat includes the deterministic diff.
+                </p>
+                <div className="mt-4 max-h-64 space-y-3 overflow-y-auto">
+                  {chatMessages.length === 0 && (
+                    <p className="text-sm text-zinc-400">e.g. “What are the top quantum risks?”</p>
+                  )}
+                  {chatMessages.map((m, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "rounded-lg px-3 py-2 text-sm",
+                        m.role === "user" ? "bg-indigo-50 text-indigo-950" : "bg-zinc-50 text-zinc-800"
+                      )}
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {m.role === "user" ? "You" : "AI (Groq)"}
+                      </span>
+                      <p className="mt-1 whitespace-pre-wrap">{m.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Your question…"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void sendAssistantMessage();
+                      }
+                    }}
+                  />
+                  <Button type="button" disabled={chatLoading} onClick={() => void sendAssistantMessage()}>
+                    {chatLoading ? "…" : "Send"}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </TabsContent>

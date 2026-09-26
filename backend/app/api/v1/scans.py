@@ -12,6 +12,7 @@ from app.engines.mosca_engine import compute_mosca, describe_transition
 from app.engines.pqc_engine import recommend
 from app.models import Artefact, Scan, User
 from app.schemas.api import ContextUpdate, ScanCreateResponse, ScanSummary
+from app.services.scan_diff import compute_scan_diff, max_risk_score
 from app.services.storage import storage_service
 
 router = APIRouter(prefix="/scans", tags=["scans"])
@@ -138,12 +139,12 @@ def get_scan(scan_id: str, db: Session = Depends(get_db), user: User = Depends(g
 @router.put("/{scan_id}/context")
 def update_context(scan_id: str, body: ContextUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     scan = get_scan_for_user(db, scan_id, user)
-    previous = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, _max_risk(db, scan.id))
+    previous = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, max_risk_score(db, scan.id))
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(scan, field, value)
     db.commit()
     db.refresh(scan)
-    current = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, _max_risk(db, scan.id))
+    current = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, max_risk_score(db, scan.id))
     current["scan_id"] = str(scan.id)
     current["transition"] = describe_transition(previous["baseline_category"], current["baseline_category"])
     current["saved"] = True
@@ -236,18 +237,6 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
     }
 
 
-def _artefact_brief(a: Artefact) -> dict:
-    return {
-        "artefact_id": str(a.id),
-        "bom_ref": a.bom_ref,
-        "name": a.name,
-        "asset_type": a.asset_type,
-        "risk_band": a.risk_band,
-        "file_path": a.file_path,
-        "final_risk_score": a.final_risk_score,
-    }
-
-
 @router.get("/{scan_id}/diff")
 def scan_diff(
     scan_id: str,
@@ -257,68 +246,7 @@ def scan_diff(
 ):
     current = get_scan_for_user(db, scan_id, user)
     baseline = get_scan_for_user(db, against, user)
-
-    current_by_ref = {a.bom_ref: a for a in db.query(Artefact).filter(Artefact.scan_id == current.id).all()}
-    baseline_by_ref = {a.bom_ref: a for a in db.query(Artefact).filter(Artefact.scan_id == baseline.id).all()}
-
-    added_refs = set(current_by_ref) - set(baseline_by_ref)
-    removed_refs = set(baseline_by_ref) - set(current_by_ref)
-    risk_band_changed = []
-    for ref in set(current_by_ref) & set(baseline_by_ref):
-        cur = current_by_ref[ref]
-        base = baseline_by_ref[ref]
-        if cur.risk_band != base.risk_band:
-            risk_band_changed.append(
-                {
-                    **_artefact_brief(cur),
-                    "previous_risk_band": base.risk_band,
-                    "previous_final_risk_score": base.final_risk_score,
-                }
-            )
-
-    before_mosca = compute_mosca(baseline.data_lifetime_x, baseline.migration_time_y, _max_risk(db, baseline.id))
-    after_mosca = compute_mosca(current.data_lifetime_x, current.migration_time_y, _max_risk(db, current.id))
-
-    return {
-        "scan_id": str(current.id),
-        "against_scan_id": str(baseline.id),
-        "added": [_artefact_brief(current_by_ref[r]) for r in sorted(added_refs)],
-        "removed": [_artefact_brief(baseline_by_ref[r]) for r in sorted(removed_refs)],
-        "risk_band_changed": risk_band_changed,
-        "counts": {
-            "added": len(added_refs),
-            "removed": len(removed_refs),
-            "risk_band_changed": len(risk_band_changed),
-            "critical_before": baseline.critical_risk_count,
-            "critical_after": current.critical_risk_count,
-            "high_before": baseline.high_risk_count,
-            "high_after": current.high_risk_count,
-        },
-        "mosca": {
-            "before": {
-                "baseline_category": before_mosca["baseline_category"],
-                "overall_category": before_mosca["overall_category"],
-            },
-            "after": {
-                "baseline_category": after_mosca["baseline_category"],
-                "overall_category": after_mosca["overall_category"],
-            },
-            "transition": describe_transition(
-                before_mosca["baseline_category"],
-                after_mosca["baseline_category"],
-            ),
-        },
-    }
-
-
-def _max_risk(db: Session, scan_id) -> float:
-    max_risk = (
-        db.query(Artefact.final_risk_score)
-        .filter(Artefact.scan_id == scan_id)
-        .order_by(Artefact.final_risk_score.desc())
-        .first()
-    )
-    return float(max_risk[0]) if max_risk and max_risk[0] else 0.0
+    return compute_scan_diff(db, current, baseline)
 
 
 @router.get("/{scan_id}/mosca")
@@ -331,7 +259,7 @@ def scan_mosca(
     user: User = Depends(get_current_user),
 ):
     scan = get_scan_for_user(db, scan_id, user)
-    fr = _max_risk(db, scan.id)
+    fr = max_risk_score(db, scan.id)
     saved = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, fr)
     use_x = scan.data_lifetime_x if x is None else x
     use_y = scan.migration_time_y if y is None else y

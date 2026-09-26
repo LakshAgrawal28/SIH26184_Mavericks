@@ -1,3 +1,4 @@
+import inspect
 import json
 import uuid
 from datetime import datetime, timezone
@@ -19,6 +20,8 @@ from scanner.detectors.pipeline import (
     prepare_scan_tree,
     run_all_detectors,
 )
+
+QUANTUM_CLASSES = ("shor", "grover", "broken_classical", "none", "inspect", "unknown")
 
 _redis_client = None
 
@@ -101,12 +104,23 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         db.query(Artefact).filter(Artefact.scan_id == scan.id).delete()
 
         critical = high = 0
+        cert_days_left: list[float] = []
         for f in findings:
             cert_expiry_days = None
             if f.asset_type == "certificate" and isinstance(f.raw_metadata, dict):
                 cert_expiry_days = f.raw_metadata.get("days_to_expiry")
+                days_num = _as_float(cert_expiry_days)
+                if days_num is not None:
+                    cert_days_left.append(days_num)
 
-            hndl, op, final, band = compute_risk(
+            algo_input = f.algorithm or f.library_name or f.name
+            _, algo_mapped = canonicalize_algorithm(algo_input)
+            raw_metadata = dict(f.raw_metadata) if isinstance(f.raw_metadata, dict) else {}
+            if not algo_mapped and algo_input:
+                raw_metadata["unmapped"] = True
+                raw_metadata.setdefault("raw_algorithm", algo_input)
+
+            hndl, op, final, band, risk_extra = _score_finding(
                 algorithm=f.algorithm or f.name,
                 mode=f.mode,
                 sensitivity=scan.sensitivity_score,
@@ -116,13 +130,15 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 confidence=f.confidence,
                 asset_type=f.asset_type,
                 cert_expiry_days=cert_expiry_days,
+                primitive=f.primitive,
             )
-            algo_input = f.algorithm or f.library_name or f.name
-            _, algo_mapped = canonicalize_algorithm(algo_input)
-            raw_metadata = dict(f.raw_metadata) if isinstance(f.raw_metadata, dict) else {}
-            if not algo_mapped and algo_input:
-                raw_metadata["unmapped"] = True
-                raw_metadata.setdefault("raw_algorithm", algo_input)
+            _enrich_raw_metadata(
+                raw_metadata,
+                algorithm=algo_input,
+                primitive=f.primitive,
+                asset_type=f.asset_type,
+                extra=risk_extra,
+            )
 
             action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(
                 algo_input, band, primitive=f.primitive
@@ -163,6 +179,12 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 timeline_urgency=urgency,
             )
             db.add(art)
+
+        if cert_days_left:
+            max_days = max(cert_days_left)
+            suggested = max(1, round(max(max_days, 0) / 365, 2))
+            if hasattr(scan, "suggested_data_lifetime_x"):
+                scan.suggested_data_lifetime_x = suggested
 
         scan.total_artefacts = len(findings)
         scan.critical_risk_count = critical

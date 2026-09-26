@@ -24,7 +24,7 @@ Track acceptance criteria in each document’s §5 checklists when cutting a rel
 | Engine v1.1 | E1–E4 | Implemented (`canonicalize_algorithm`, PQC primitive fallback, `docs/RISK_MODEL.md`) |
 | Engine v1.2 | E5–E8 | Implemented (labels, `c-crypto.yaml`, container `.tar`, E7 in `ACCURACY.md`) |
 | Engine v1.3 | E9 | Implemented (diff API + scan detail UI) |
-| Engine v1.4 | E10 | **Not started** (AI narration — feature-flagged; out of scope for this pass) |
+| Engine v1.4 | E10 | **Implemented** (Groq narration/chat, `AI_NARRATION_ENABLED`, grounding checks) |
 | Security v2.0 | D1–D4 | Implemented (ownership, WS JWT, `.env`, `SECURITY.md`, redaction, health) |
 | Security v2.1 | D5–D9 | Implemented (admin password, rate limit, CORS, `token_version` + logout, admin list) |
 | Security v2.2 | D10–D13 | Implemented (decompress budget, `parse_scan_id`, artefact limit cap) |

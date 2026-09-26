@@ -21,6 +21,12 @@ services:
       - key: BACKEND_CORS_ORIGINS
         sync: false
         value: https://ecdat-frontend.onrender.com,https://ecdat-zeta.vercel.app,http://localhost:3000
+      - key: AI_NARRATION_ENABLED
+        value: "true"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
 
   - type: web
     name: ecdat-frontend
