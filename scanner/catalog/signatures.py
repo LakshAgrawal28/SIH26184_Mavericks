@@ -205,6 +205,8 @@ ALGO_NORMALIZE = {
     "crypto/x509": "X.509",
     "crypto/aes": "AES",
     "crypto/des": "DES",
+    "tls_rsa_with_rc4_128_sha": "TLS-RSA-WITH-RC4",
+    "tls_rsa_with_3des_ede_cbc_sha": "TLS-RSA-WITH-3DES",
 }
 
 

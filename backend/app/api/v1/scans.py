@@ -354,6 +354,7 @@ def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User
             a.algorithm or a.library_name or a.name,
             a.risk_band or "LOW",
             primitive=a.primitive,
+            asset_type=a.asset_type,
         )
         if (
             a.recommendation_action != action

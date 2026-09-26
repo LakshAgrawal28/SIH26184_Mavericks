@@ -30,6 +30,7 @@ ALGORITHM_QV = {
     "3DES": 9.0,
     "RC4": 10.0,
     "ML-KEM-768": 0.0,
+    "ML-DSA": 0.0,
     "ML-DSA-65": 0.0,
     "SLH-DSA": 0.0,
     "CHACHA20": 1.5,
@@ -66,6 +67,12 @@ ALGORITHM_QV = {
     "JAVA-KEYSTORE": 8.0,
     "X.509": 8.0,
     "SSL": 5.5,
+    "OPENSSL": 4.0,
+    "PASSLIB": 3.0,
+    "PASSWORD-HASH": 3.0,
+    "TLS-1.2": 4.0,
+    "TLS-RSA-WITH-RC4": 9.0,
+    "TLS-RSA-WITH-3DES": 9.0,
 }
 
 # Shor-broken public-key vs Grover-only symmetric vs classically broken vs PQC.
@@ -117,6 +124,7 @@ QUANTUM_BREAK = {
     "TLS-1.1": "broken_classical",
     "TLS-INSECURESKIPVERIFY": "broken_classical",
     "ML-KEM-768": "none",
+    "ML-DSA": "none",
     "ML-DSA-65": "none",
     "SLH-DSA": "none",
     "ML-KEM-512": "none",
@@ -131,6 +139,10 @@ QUANTUM_BREAK = {
     "SSL": "unknown",
     "WEBCRYPTO": "unknown",
     "NODE-CRYPTO": "unknown",
+    "OPENSSL": "unknown",
+    "PASSLIB": "unknown",
+    "PASSWORD-HASH": "grover",
+    "TLS-1.2": "unknown",
 }
 
 CLASSICAL_WEAKNESS = {
@@ -169,6 +181,7 @@ PQC_MAP = {
     "SHA-384": (None, None, "Keep"),
     "SHA-512": (None, None, "Keep"),
     "ML-KEM-768": (None, None, "Keep"),
+    "ML-DSA": (None, None, "Keep"),
     "ML-DSA-65": (None, None, "Keep"),
     "RC4": ("AES-256-GCM", None, "Immediate Replacement"),
     "CHACHA20": (None, None, "Keep"),
@@ -200,9 +213,15 @@ PQC_MAP = {
     "ARGON2": (None, None, "Keep"),
     "WEBCRYPTO": (None, None, "Inspect"),
     "NODE-CRYPTO": (None, None, "Inspect"),
-    "PRIVATE-KEY": ("ML-DSA-65", None, "Migrate"),
-    "PKCS12": ("ML-DSA-65", None, "Migrate"),
-    "JAVA-KEYSTORE": ("ML-DSA-65", None, "Migrate"),
+    "PRIVATE-KEY": (None, None, "Inspect"),
+    "PKCS12": (None, None, "Inspect"),
+    "JAVA-KEYSTORE": (None, None, "Inspect"),
+    "OPENSSL": (None, None, "Inspect"),
+    "PASSLIB": ("Argon2id", None, "Harden"),
+    "PASSWORD-HASH": ("Argon2id", None, "Harden"),
+    "TLS-1.2": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Monitor"),
+    "TLS-RSA-WITH-RC4": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Immediate Replacement"),
+    "TLS-RSA-WITH-3DES": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Immediate Replacement"),
     "X.509": ("ML-DSA-65", "RSA + ML-DSA-65", "Hybrid Migration"),
     "SSL": ("TLS 1.3 + ML-KEM-768", "X25519MLKEM768", "Hybrid Migration"),
 }
@@ -230,6 +249,35 @@ _TAXONOMY_LOOKUP_KEYS = tuple(
         reverse=True,
     )
 )
+# Short tokens must not match inside unrelated names (e.g. SSL inside PASSLIB / OPENSSL).
+_BOUNDARY_TAXONOMY_TOKENS = frozenset(
+    {
+        "SSL",
+        "TLS",
+        "DES",
+        "RSA",
+        "AES",
+        "MD5",
+        "DH",
+        "JWT",
+        "LIB",
+        "RC4",
+        "HMAC",
+    }
+)
+
+
+def _taxonomy_token_in_norm(token: str, norm: str) -> bool:
+    tok = token.upper().replace("_", "-")
+    if tok in _BOUNDARY_TAXONOMY_TOKENS:
+        return bool(
+            re.search(
+                r"(?:^|[^A-Z0-9])" + re.escape(tok) + r"(?:[^A-Z0-9]|$)",
+                norm,
+                re.IGNORECASE,
+            )
+        )
+    return tok in norm or norm.startswith(tok)
 
 
 def _normalize_algorithm_string(raw: str) -> str:
@@ -254,14 +302,24 @@ def _normalize_algorithm_string(raw: str) -> str:
         return "TLS-1.0"
     if "TLS-1.1" in u:
         return "TLS-1.1"
-    if "TLS" in u and "ML-KEM" not in u:
+    if "TLS1.2" in u or "TLSV1.2" in u or "VERSIONTLS12" in u:
+        return "TLS-1.2"
+    if re.search(r"(?:^|[^A-Z0-9])TLS(?:[^A-Z0-9]|$)", u) and "ML-KEM" not in u:
         return "TLS"
+    if "TLS_RSA_WITH_RC4" in u or "TLS-RSA-WITH-RC4" in u:
+        return "TLS-RSA-WITH-RC4"
+    if "TLS_RSA_WITH_3DES" in u or "TLS-RSA-WITH-3DES" in u:
+        return "TLS-RSA-WITH-3DES"
+    if u in ("PASSLIB", "PASSLIB[BCRYPT]") or u.startswith("PASSLIB"):
+        return "PASSLIB"
+    if "OPENSSL" in u and "LIBOQS" not in u:
+        return "OPENSSL"
     return u
 
 
 def _taxonomy_key_for_normalized(norm: str) -> str | None:
     for lookup in _TAXONOMY_LOOKUP_KEYS:
-        if lookup in norm or norm.startswith(lookup):
+        if _taxonomy_token_in_norm(lookup, norm) or norm.startswith(lookup):
             for source_key in ALGORITHM_QV:
                 if source_key.upper().replace("_", "-") == lookup:
                     return source_key
@@ -369,11 +427,22 @@ def classify_use_case(
         return "certificate"
     if prim in ("library",):
         return "library"
-    if prim in ("material", "key-material"):
+    if prim in ("material", "key-material", "related-crypto-material"):
+        return "material"
+    if asset in ("related-crypto-material",):
         return "material"
 
     if mapped and canonical:
-        if canonical in ("JWT", "JSONWEBTOKEN", "JWT.SIGN", "WEBCRYPTO", "NODE-CRYPTO"):
+        if canonical in (
+            "JWT",
+            "JSONWEBTOKEN",
+            "JWT.SIGN",
+            "WEBCRYPTO",
+            "NODE-CRYPTO",
+            "OPENSSL",
+            "PASSLIB",
+            "PASSWORD-HASH",
+        ):
             return "library"
         if canonical in ("TLS", "TLS-1.0", "TLS-1.1", "TLS-INSECURESKIPVERIFY", "SSL"):
             return "protocol"
@@ -396,6 +465,8 @@ def classify_use_case(
             "RC4",
         ):
             return "symmetric"
+        if canonical in ("TLS-RSA-WITH-RC4", "TLS-RSA-WITH-3DES"):
+            return "protocol"
         if canonical in ("ECDSA", "Ed25519", "DSA", "DSA-1024", "RS256", "ES256", "PS256"):
             return "signature"
         if canonical in (
@@ -424,7 +495,7 @@ def classify_use_case(
         return "certificate"
     if asset == "library":
         return "library"
-    if "TLS" in key or key == "SSL":
+    if re.search(r"(?:^|[^A-Z0-9])TLS(?:[^A-Z0-9]|$)", key) or key == "SSL":
         return "protocol"
     return "unknown"
 

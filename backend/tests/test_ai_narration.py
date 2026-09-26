@@ -18,9 +18,28 @@ def test_validate_grounding_accepts_consistent_summary():
     context = {
         "scan": {"total_artefacts": 5, "critical_risk_count": 1, "high_risk_count": 2},
         "artefacts": [{"risk_band": "CRITICAL"}, {"risk_band": "HIGH"}],
+        "artefacts_in_context": 2,
+        "artefacts_truncated": False,
     }
     ok, _ = validate_grounding("We recorded 5 artefacts with 1 critical and 2 high findings.", context)
     assert ok
+
+
+def test_validate_grounding_accepts_truncated_context_slice_count():
+    context = {
+        "scan": {"total_artefacts": 613, "critical_risk_count": 23, "high_risk_count": 50},
+        "artefacts": [{"risk_band": "CRITICAL"}],
+        "artefacts_in_context": 40,
+        "artefacts_truncated": True,
+    }
+    ok, _ = validate_grounding(
+        "AI summary. The scan has 613 artefacts with 23 critical findings; "
+        "the JSON lists the top 40 artefacts by risk.",
+        context,
+    )
+    assert ok
+    ok40, _ = validate_grounding("Details for 40 artefacts in the attached list.", context)
+    assert ok40
 
 
 def test_evidence_block_wrapper():

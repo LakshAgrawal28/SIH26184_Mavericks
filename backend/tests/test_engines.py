@@ -190,3 +190,54 @@ class TestPrimitiveAwareScoring:
         assert get_qv("AES-GCM") < 3
         assert get_quantum_break("SecretKeySpec") != "shor"
         assert classify_use_case("AES-256", "block-cipher") == "symmetric"
+
+    def test_passlib_not_tls_protocol(self):
+        action, primary, hybrid, rationale, *_ = recommend("passlib", "HIGH")
+        assert action in ("Inspect", "Harden")
+        assert primary in (None, "Argon2id")
+        assert hybrid is None
+        assert "TLS" not in rationale or "password" in rationale.lower() or "kdf" in rationale.lower()
+
+    def test_openssl_library_inspect(self):
+        action, primary, hybrid, rationale, *_ = recommend("OpenSSL", "MEDIUM")
+        assert action == "Inspect"
+        assert primary is None
+        assert "ML-KEM" not in (primary or "")
+        assert "provider" in rationale.lower() or "library" in rationale.lower()
+
+    def test_private_key_material_inspect(self):
+        action, primary, hybrid, rationale, *_ = recommend(
+            "PRIVATE-KEY",
+            "CRITICAL",
+            primitive="related-crypto-material",
+            asset_type="related-crypto-material",
+        )
+        assert action == "Inspect"
+        assert primary is None
+        assert "ML-DSA" not in (primary or "")
+        assert "material" in rationale.lower()
+
+    def test_rc4_protocol_finding_symmetric_replacement(self):
+        action, primary, hybrid, rationale, *_ = recommend(
+            "RC4",
+            "HIGH",
+            primitive="protocol",
+        )
+        assert action == "Immediate Replacement"
+        assert primary == "AES-256-GCM"
+        assert "ML-KEM" not in (primary or "")
+
+    def test_ml_dsa_already_pqc_keep(self):
+        action, primary, hybrid, rationale, *_ = recommend("ML-DSA", "LOW")
+        assert action == "Keep"
+        assert primary is None
+
+    def test_bcrypt_library_harden_not_jwt(self):
+        action, primary, _, rationale, *_ = recommend(
+            "bcrypt@4.1.2",
+            "LOW",
+            primitive="library",
+            asset_type="library",
+        )
+        assert action in ("Inspect", "Harden")
+        assert "JWT alg header" not in rationale

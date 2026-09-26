@@ -141,7 +141,7 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
             )
 
             action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(
-                algo_input, band, primitive=f.primitive
+                algo_input, band, primitive=f.primitive, asset_type=f.asset_type
             )
 
             if band == "CRITICAL":
