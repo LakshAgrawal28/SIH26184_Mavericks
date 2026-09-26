@@ -6,16 +6,18 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.redact import redact_evidence_snippet
 from app.engines.pqc_engine import recommend
 from app.engines.risk_engine import compute_risk
+from app.engines.taxonomy import canonicalize_algorithm
 from app.models import Artefact, Scan
 from app.services.storage import storage_service
 from scanner.detectors.pipeline import (
+    DecompressBudget,
     coverage_stats,
     finding_to_bom_ref,
+    prepare_scan_tree,
     run_all_detectors,
-    safe_extract_zip,
-    unpack_nested_archives,
 )
 
 _redis_client = None
@@ -44,7 +46,10 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
 
     work_root = Path(settings.scan_work_dir) / str(scan_id)
     work_root.mkdir(parents=True, exist_ok=True)
-    zip_path = work_root / "upload.zip"
+    if scan.target_type == "container_image" or (scan.storage_path or "").endswith(".tar"):
+        upload_path = work_root / "upload.tar"
+    else:
+        upload_path = work_root / "upload.zip"
     extract_path = work_root / "src"
 
     try:
@@ -56,21 +61,26 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
 
         if scan.storage_path:
             if scan.storage_path.startswith("scans/"):
-                storage_service.download_to_file(scan.storage_path, str(zip_path))
+                storage_service.download_to_file(scan.storage_path, str(upload_path))
             else:
                 import shutil
 
                 src = Path(scan.storage_path)
-                if src.resolve() != zip_path.resolve():
-                    shutil.copy2(scan.storage_path, zip_path)
+                if src.resolve() != upload_path.resolve():
+                    shutil.copy2(scan.storage_path, upload_path)
 
         scan.current_stage = "Extracting files"
         scan.progress_percentage = 15
         db.commit()
         publish_progress(str(scan_id), {"status": "running", "progress_percentage": 15, "current_stage": scan.current_stage})
 
-        file_count = safe_extract_zip(zip_path, extract_path)
-        file_count += unpack_nested_archives(extract_path)
+        decompress_budget = DecompressBudget(max_bytes=settings.scan_max_bytes * 2)
+        file_count = prepare_scan_tree(
+            upload_path,
+            extract_path,
+            scan.target_type or "zip_archive",
+            budget=decompress_budget,
+        )
         scan.total_files = file_count
         stats = coverage_stats(extract_path)
 
@@ -107,8 +117,15 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 asset_type=f.asset_type,
                 cert_expiry_days=cert_expiry_days,
             )
+            algo_input = f.algorithm or f.library_name or f.name
+            _, algo_mapped = canonicalize_algorithm(algo_input)
+            raw_metadata = dict(f.raw_metadata) if isinstance(f.raw_metadata, dict) else {}
+            if not algo_mapped and algo_input:
+                raw_metadata["unmapped"] = True
+                raw_metadata.setdefault("raw_algorithm", algo_input)
+
             action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(
-                f.algorithm or f.library_name or f.name, band
+                algo_input, band, primitive=f.primitive
             )
 
             if band == "CRITICAL":
@@ -131,8 +148,8 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 line_number=f.line_number,
                 detection_method=f.detection_method,
                 confidence=f.confidence,
-                evidence_snippet=f.evidence_snippet,
-                raw_metadata=f.raw_metadata or None,
+                evidence_snippet=redact_evidence_snippet(f.evidence_snippet),
+                raw_metadata=raw_metadata or None,
                 hndl_risk=hndl,
                 operational_risk=op,
                 final_risk_score=final,

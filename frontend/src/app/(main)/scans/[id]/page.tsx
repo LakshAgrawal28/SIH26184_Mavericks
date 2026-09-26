@@ -46,6 +46,18 @@ export default function ScanDetailPage() {
     schema?: string;
   } | null>(null);
   const [moscaSaving, setMoscaSaving] = useState(false);
+  const [diffAgainstId, setDiffAgainstId] = useState("");
+  const [scanDiff, setScanDiff] = useState<{
+    counts?: {
+      added: number;
+      removed: number;
+      risk_band_changed: number;
+      critical_before: number;
+      critical_after: number;
+    };
+    mosca?: { transition?: { label: string } };
+  } | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
 
   const loadCompletedData = useCallback(async () => {
     const [arts, moscaData, recData, summaryData] = await Promise.all([
@@ -104,27 +116,31 @@ export default function ScanDetailPage() {
       }
     }, 800);
 
-    const wsUrl = `${API_URL.replace(/^http/, "ws")}/api/v1/scans/${id}/progress`;
-    const ws = new WebSocket(wsUrl);
-    ws.onmessage = (ev) => {
-      try {
-        const data = JSON.parse(ev.data) as Partial<Scan>;
-        setScan((prev) => (prev ? { ...prev, ...data } : prev));
-        if (data.data_lifetime_x !== undefined) setMoscaX(data.data_lifetime_x);
-        if (data.migration_time_y !== undefined) setMoscaY(data.migration_time_y);
-        if (data.status === "completed") {
-          loadCompletedData();
-          window.clearInterval(poll);
+    const token = getToken();
+    const wsBase = `${API_URL.replace(/^http/, "ws")}/api/v1/scans/${id}/progress`;
+    const wsUrl = token ? `${wsBase}?token=${encodeURIComponent(token)}` : wsBase;
+    const ws = token ? new WebSocket(wsUrl) : null;
+    if (ws) {
+      ws.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data) as Partial<Scan>;
+          setScan((prev) => (prev ? { ...prev, ...data } : prev));
+          if (data.data_lifetime_x !== undefined) setMoscaX(data.data_lifetime_x);
+          if (data.migration_time_y !== undefined) setMoscaY(data.migration_time_y);
+          if (data.status === "completed") {
+            loadCompletedData();
+            window.clearInterval(poll);
+          }
+          if (data.status === "failed") window.clearInterval(poll);
+        } catch (err) {
+          console.error("WS error", err);
         }
-        if (data.status === "failed") window.clearInterval(poll);
-      } catch (err) {
-        console.error("WS error", err);
-      }
-    };
-    ws.onerror = () => {};
+      };
+      ws.onerror = () => {};
+    }
     return () => {
       window.clearInterval(poll);
-      ws.close();
+      ws?.close();
     };
   }, [id, router, loadCompletedData]);
 
@@ -153,6 +169,22 @@ export default function ScanDetailPage() {
       window.alert(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setMoscaSaving(false);
+    }
+  }
+
+  async function loadScanDiff() {
+    if (!diffAgainstId.trim()) return;
+    setDiffLoading(true);
+    try {
+      const data = await apiFetch<typeof scanDiff>(
+        `/api/v1/scans/${id}/diff?against=${encodeURIComponent(diffAgainstId.trim())}`
+      );
+      setScanDiff(data);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Diff failed");
+      setScanDiff(null);
+    } finally {
+      setDiffLoading(false);
     }
   }
 
@@ -343,6 +375,56 @@ export default function ScanDetailPage() {
               </div>
             )}
           </div>
+          {scan.status === "completed" && (
+            <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-zinc-900">Compare to another scan</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Enter a baseline scan ID to see added/removed artefacts and Mosca category change.
+              </p>
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="min-w-[16rem] flex-1">
+                  <Label htmlFor="diff-against">Baseline scan ID</Label>
+                  <Input
+                    id="diff-against"
+                    value={diffAgainstId}
+                    onChange={(e) => setDiffAgainstId(e.target.value)}
+                    placeholder="UUID of earlier scan"
+                    className="mt-1"
+                  />
+                </div>
+                <Button type="button" variant="outline" disabled={diffLoading} onClick={loadScanDiff}>
+                  {diffLoading ? "Loading…" : "Run diff"}
+                </Button>
+              </div>
+              {scanDiff?.counts && (
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <dt className="text-zinc-500">Added</dt>
+                    <dd className="font-semibold text-zinc-900">{scanDiff.counts.added}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-zinc-500">Removed</dt>
+                    <dd className="font-semibold text-zinc-900">{scanDiff.counts.removed}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-zinc-500">Risk band changed</dt>
+                    <dd className="font-semibold text-zinc-900">{scanDiff.counts.risk_band_changed}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-zinc-500">Critical</dt>
+                    <dd className="font-semibold text-zinc-900">
+                      {scanDiff.counts.critical_before} → {scanDiff.counts.critical_after}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              {scanDiff?.mosca?.transition?.label && (
+                <p className="mt-3 text-sm font-medium text-indigo-700">
+                  Mosca: {scanDiff.mosca.transition.label}
+                </p>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="inventory">

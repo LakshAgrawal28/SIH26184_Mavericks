@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440
 
     default_admin_email: str = "admin@example.com"
-    default_admin_password: str = "admin123"
+    # Unset → random password on first admin bootstrap (see ensure_default_admin).
+    default_admin_password: str | None = None
 
     frontend_url: str = "http://localhost:3000"
     backend_cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"

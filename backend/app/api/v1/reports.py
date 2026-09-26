@@ -1,5 +1,4 @@
 import json
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -8,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.cbom.builder import build_cbom, build_pdf_summary
 from app.cbom.validator import validate_cbom
 from app.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_scan_for_user
 from app.db.session import get_db
 from app.engines.mosca_engine import compute_mosca
 from app.models import Artefact, Report, Scan, User
@@ -17,17 +16,15 @@ from app.services.storage import storage_service
 router = APIRouter(prefix="/scans", tags=["reports"])
 
 
-def _scan_artefacts(db: Session, scan_id: str) -> tuple[Scan, list[Artefact]]:
-    scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+def _scan_artefacts(db: Session, scan_id: str, user: User) -> tuple[Scan, list[Artefact]]:
+    scan = get_scan_for_user(db, scan_id, user)
     artefacts = db.query(Artefact).filter(Artefact.scan_id == scan.id).all()
     return scan, artefacts
 
 
 @router.post("/{scan_id}/reports/cbom")
 def export_cbom(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scan, artefacts = _scan_artefacts(db, scan_id)
+    scan, artefacts = _scan_artefacts(db, scan_id, user)
     try:
         cbom = build_cbom(scan, artefacts, validate=True)
         valid = "true"
@@ -56,7 +53,7 @@ def export_cbom(scan_id: str, db: Session = Depends(get_db), user: User = Depend
 
 @router.get("/{scan_id}/reports/cbom/validate")
 def validate_cbom_export(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scan, artefacts = _scan_artefacts(db, scan_id)
+    scan, artefacts = _scan_artefacts(db, scan_id, user)
     cbom = build_cbom(scan, artefacts, validate=False)
     result = validate_cbom(cbom)
     result["component_count"] = len(cbom.get("components") or [])
@@ -66,7 +63,7 @@ def validate_cbom_export(scan_id: str, db: Session = Depends(get_db), user: User
 
 @router.post("/{scan_id}/reports/pdf")
 def export_pdf(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scan, artefacts = _scan_artefacts(db, scan_id)
+    scan, artefacts = _scan_artefacts(db, scan_id, user)
     max_risk = max((a.final_risk_score for a in artefacts), default=0.0)
     mosca = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, max_risk)
     pdf = build_pdf_summary(scan, artefacts, mosca)

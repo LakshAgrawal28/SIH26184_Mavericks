@@ -1,0 +1,1 @@
+[{"Config": "config.json", "RepoTags": ["ecdat/fixture:latest"], "Layers": ["layer0/layer.tar", "layer1/layer.tar"]}]

@@ -15,6 +15,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255), default="Admin")
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(50), default="admin")
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -38,9 +39,19 @@ class Scan(Base):
     sensitivity_score: Mapped[int] = mapped_column(Integer, default=7)
     exposure_score: Mapped[int] = mapped_column(Integer, default=7)
     business_criticality: Mapped[int] = mapped_column(Integer, default=7)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    parent_scan_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("scans.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    owner: Mapped["User | None"] = relationship()
     artefacts: Mapped[list["Artefact"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
 
 

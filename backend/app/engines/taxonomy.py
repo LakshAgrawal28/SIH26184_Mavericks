@@ -1,5 +1,9 @@
 """Quantum vulnerability scores and PQC mapping."""
 
+from __future__ import annotations
+
+import re
+
 ALGORITHM_QV = {
     "RSA": 10.0,
     "RSA-1024": 10.0,
@@ -126,6 +130,8 @@ PQC_MAP = {
     "X.509": ("ML-DSA-65", "RSA + ML-DSA-65", "Hybrid Migration"),
 }
 
+# Z = years until a CRQC can break relevant crypto. Values are internal planning
+# estimates for scenario comparison — not a single external forecast. See docs/RISK_MODEL.md.
 MOSCA_SCENARIOS = [
     {"name": "Optimistic", "z_value": 15.0},
     {"name": "Baseline", "z_value": 10.0},
@@ -133,14 +139,71 @@ MOSCA_SCENARIOS = [
     {"name": "Regulatory", "z_value": 7.0},
 ]
 
+_TAXONOMY_LOOKUP_KEYS = tuple(
+    sorted({k.upper().replace("_", "-") for k in ALGORITHM_QV} | {k.upper().replace("_", "-") for k in PQC_MAP}, key=len, reverse=True)
+)
+
+
+def _normalize_algorithm_string(raw: str) -> str:
+    u = raw.upper().strip().replace("_", "-").replace(" ", "")
+    u = re.sub(r"AES(\d{3})", r"AES-\1", u)
+    u = re.sub(r"RSA(\d{4})", r"RSA-\1", u)
+    if "JSONWEBTOKEN" in u or "JWT" in u:
+        if "RS256" in u:
+            return "RS256"
+        if "ES256" in u:
+            return "ES256"
+        if "HS256" in u:
+            return "HS256"
+        return "JWT"
+    if "BCRYPT" in u:
+        return "BCRYPT"
+    if "INSECURESKIPVERIFY" in u:
+        return "TLS-INSECURESKIPVERIFY"
+    if "TLS-1.0" in u or "TLSV1" in u:
+        return "TLS-1.0"
+    if "TLS-1.1" in u:
+        return "TLS-1.1"
+    if "TLS" in u and "ML-KEM" not in u:
+        return "TLS"
+    return u
+
+
+def _taxonomy_key_for_normalized(norm: str) -> str | None:
+    for lookup in _TAXONOMY_LOOKUP_KEYS:
+        if lookup in norm or norm.startswith(lookup):
+            for source_key in ALGORITHM_QV:
+                if source_key.upper().replace("_", "-") == lookup:
+                    return source_key
+            for source_key in PQC_MAP:
+                if source_key.upper().replace("_", "-") == lookup:
+                    return source_key
+            return lookup
+    return None
+
+
+def canonicalize_algorithm(raw: str | None) -> tuple[str | None, bool]:
+    """Return (canonical taxonomy name, mapped_to_taxonomy).
+
+    When mapped, canonical is the ALGORITHM_QV / PQC_MAP dictionary key (e.g. ``AES-256``).
+    When unmapped, canonical is the normalized detector string for traceability.
+    """
+    if not raw or not str(raw).strip():
+        return None, False
+    norm = _normalize_algorithm_string(str(raw))
+    matched = _taxonomy_key_for_normalized(norm)
+    if matched:
+        return matched, True
+    return norm, False
+
 
 def get_qv(algorithm: str | None) -> float:
     if not algorithm:
         return 5.0
-    key = algorithm.upper().replace("_", "-")
-    for k, v in sorted(ALGORITHM_QV.items(), key=lambda x: len(x[0]), reverse=True):
-        if k in key or key.startswith(k):
-            return v
+    canonical, mapped = canonicalize_algorithm(algorithm)
+    if mapped and canonical:
+        return ALGORITHM_QV[canonical]
+    key = (canonical or algorithm).upper().replace("_", "-")
     if any(x in key for x in ("RSA", "EC", "ED25519", "X25519")):
         return 10.0
     return 5.0

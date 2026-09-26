@@ -409,7 +409,7 @@ Full methodology: [`docs/ACCURACY.md`](docs/ACCURACY.md)
 - **Lockfile parsing** — not just `package.json`, but `package-lock.json`, `poetry.lock`, `go.sum`, `Cargo.lock`
 - **Certificate parsing** — X.509 with subject, issuer, expiry; headless PEMs without file extensions
 - **Config scanning** — nginx, Spring YAML, Docker Compose, `.env`, Terraform
-- **Binary fingerprinting** — ELF/PE magic bytes, OpenSSL strings in `.so`/`.dll`
+- **Binary string scanning** — readable `strings`-style matches in `.so`/`.dll` (not stripped-binary constant tables)
 
 </details>
 
@@ -506,10 +506,12 @@ mindmap
 
 ### Option A — Docker Compose (full stack)
 
+Create a local `.env` from the template (**required** — Compose loads `.env`, not `.env.example`):
+
 ```bash
 git clone https://github.com/LakshAgrawal28/SIH26184_Mavericks.git
 cd SIH26184_Mavericks
-cp .env.example .env
+cp .env.example .env   # edit secrets in .env before any non-local deploy
 docker compose up -d --build
 ```
 
@@ -709,6 +711,9 @@ vercel deploy --prod
 | [`docs/WINNING_GUIDE.md`](docs/WINNING_GUIDE.md) | SIH judging prep, anticipated Q&A |
 | [`docs/PRESENTATION_SCRIPT.md`](docs/PRESENTATION_SCRIPT.md) | 4-minute pitch script |
 | [`docs/CRYPTO_CHEAT_SHEET.md`](docs/CRYPTO_CHEAT_SHEET.md) | Quick reference for team |
+| [`docs/IMPROVEMENT_PLANS.md`](docs/IMPROVEMENT_PLANS.md) | Roadmap index (engine v1.x + security v2.x) |
+| [`docs/ECDAT_v1.1_Engine_Improvement_Plan.md`](docs/ECDAT_v1.1_Engine_Improvement_Plan.md) | Detection, risk, Mosca, PQC, CBOM, E8 container scan |
+| [`docs/ECDAT_v2_Website_Deployment_Improvement_Plan.md`](docs/ECDAT_v2_Website_Deployment_Improvement_Plan.md) | Auth, IDOR, deployment secrets, hardening |
 | [`docs/team-briefs/00-INDEX.md`](docs/team-briefs/00-INDEX.md) | Per-member reading briefs |
 
 ---

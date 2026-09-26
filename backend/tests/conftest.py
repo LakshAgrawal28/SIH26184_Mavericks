@@ -28,6 +28,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "database_url", f"sqlite:///{db_path}")
     monkeypatch.setattr(settings, "scan_work_dir", str(work_dir))
     monkeypatch.setattr(settings, "jwt_secret", "test-secret")
+    monkeypatch.setattr(settings, "default_admin_email", "admin@example.com")
+    monkeypatch.setattr(settings, "default_admin_password", "admin123")
 
     from sqlalchemy import create_engine
     from app.db import session as db_session
@@ -47,6 +49,13 @@ def client(tmp_path, monkeypatch):
     # test gets its own tmp_path database, not just the first one collected.
     main_module.engine = engine
     db_session.Base.metadata.create_all(bind=engine)
+    db = db_session.SessionLocal()
+    try:
+        from app.core.security import ensure_default_admin
+
+        ensure_default_admin(db)
+    finally:
+        db.close()
 
     from fastapi.testclient import TestClient
 

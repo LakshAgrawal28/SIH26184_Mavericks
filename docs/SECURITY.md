@@ -1,30 +1,36 @@
 # ECDAT — Security Model & Threat Mitigation
 
-**Document Version:** 1.0.0  
+**Document Version:** 2.0.0  
+
+This document describes mitigations that exist in the current codebase. Claims without an implementation reference have been omitted.
 
 ---
 
-## 🛡️ 1. Security Philosophy
+## 1. Security philosophy
 
-Because **ECDAT** accepts and analyzes untrusted source code archives, binary files, and container images uploaded by users, the platform itself is designed with defensive isolation controls to prevent arbitrary code execution, container breakout, path traversal, or unauthorized data leakage.
-
----
-
-## 🔒 2. Threat Model & Mitigations
-
-| Threat Vector | Attack Scenario | ECDAT Mitigation Mechanism |
-|---------------|-----------------|----------------------------|
-| **Zip-Slip / Path Traversal** | Malicious zip archive containing filenames with `../` attempting to overwrite system binaries. | Extraction stream validates canonical target directory paths (`os.path.commonpath`), throwing `SecurityException` and deleting temporary archives if traversal is detected. |
-| **Scanner Worker Compromise** | Malicious binary or script executing malicious code during analysis inside the worker. | Celery worker processes execute inside unprivileged Docker containers (`uid=10001`, `read_only_rootfs: true`), bounded by CPU/RAM cgroups and short execution timeouts. |
-| **Server-Side Request Forgery (SSRF)** | Git URL scan targets requesting internal metadata endpoints (`http://169.254.169.254`). | URL validator enforces allowlist scheme (`https://`), resolves DNS, and blocks private IP ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`). |
-| **Command Injection** | Malicious parameters passed into Semgrep or Syft CLI wrappers. | All subprocess invocations use explicit argument arrays (`execve` style without shell interpolation: `shell=False`). |
-| **Secret Material Leakage** | Private keys discovered during scanning exposed in API responses. | Evidence normalizer redacts private key headers, PEM secret bodies, and tokens using regex matchers prior to writing findings to PostgreSQL. |
-| **Data Exfiltration** | Scanner sending collected code metrics to external cloud endpoints. | Complete air-gap support. Docker Compose worker network has no egress route to the public internet (`internal: true`). |
+ECDAT accepts untrusted zip archives uploaded by users and runs static analysis on extracted files. The platform limits path traversal during extraction, avoids shell-based subprocess invocation for external tools, and redacts PEM private-key material from stored evidence snippets before persisting artefacts.
 
 ---
 
-## ☣️ 3. Vulnerability Disclosure Policy
+## 2. Threat model & mitigations
+
+| Threat vector | Mitigation (as implemented) | Code reference |
+|---------------|-----------------------------|----------------|
+| **Zip-slip / path traversal** | Each zip member is resolved under the extraction root; entries that escape the destination raise `ValueError("Zip slip detected")`. | `scanner/detectors/pipeline.py` (`safe_extract_zip`) |
+| **Command injection via CLI wrappers** | Semgrep, `strings`, and similar tools are invoked with argument lists (default `shell=False`). | `scanner/detectors/semgrep_detector.py`, `scanner/detectors/binary_detector.py` |
+| **Private key material in API data** | PEM `PRIVATE KEY` blocks in `evidence_snippet` are replaced with `[REDACTED PRIVATE KEY]` before artefacts are written to the database. | `backend/app/core/redact.py`, `backend/app/services/scan_service.py` |
+| **Health endpoint information disclosure** | `/health` reports `error` for failed database or Redis checks; exception details are logged server-side only. | `backend/app/main.py` (`health`) |
+
+**Out of scope for this release:** Git URL scanning (upload-only), container hardening (`read_only_rootfs`, fixed non-root UID), and isolated worker networks without egress are not configured in the current `docker-compose.yml`.
+
+**Deployment secrets:** Docker Compose loads variables from `.env` (git-ignored). Copy from `.env.example` and replace all secrets before deploying beyond a local demo. See `README.md` (Quick Start) and `.env.example`.
+
+---
+
+## 3. Vulnerability disclosure
 
 If you discover a potential security flaw in ECDAT, please report it via encrypted email to:
-- **Security Contact**: `security@ecdat.local` / `mavericks-sih@ntro.gov.in`
-- Please do not disclose vulnerabilities publicly until a patch has been released.
+
+- **Security contact:** `security@ecdat.local` / `mavericks-sih@ntro.gov.in`
+
+Please do not disclose vulnerabilities publicly until a patch has been released.

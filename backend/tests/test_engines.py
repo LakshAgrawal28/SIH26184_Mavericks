@@ -3,7 +3,7 @@ from app.engines.mosca_engine import compute_mosca
 from app.engines.pqc_engine import recommend
 from app.engines.risk_engine import compute_risk
 from app.engines.cert_expiry import compute_expiry_urgency
-from app.engines.taxonomy import get_qv, PQC_MAP
+from app.engines.taxonomy import get_qv, PQC_MAP, canonicalize_algorithm
 
 
 def test_risk_rsa_critical():
@@ -106,3 +106,26 @@ class TestPqcEngineNistField:
         action, primary = result[0], result[1]
         assert action == "Keep"
         assert primary is None
+
+
+class TestAlgorithmCanonicalization:
+    def test_unknown_algo_flagged_unmapped(self):
+        canonical, mapped = canonicalize_algorithm("TotallyUnknownCryptoXYZ")
+        assert mapped is False
+        assert canonical == "TOTALLYUNKNOWNCRYPTOXYZ"
+
+    def test_aes_variants_same_canonical(self):
+        c1, m1 = canonicalize_algorithm("aes-256-cbc")
+        c2, m2 = canonicalize_algorithm("AES256")
+        assert m1 and m2
+        assert c1 == c2 == "AES-256"
+
+    def test_unrecognized_signature_critical_not_mlkem(self):
+        action, primary, hybrid, *_ = recommend(
+            "TotallyUnknownSigAlgo",
+            "CRITICAL",
+            primitive="signature",
+        )
+        assert primary != "ML-KEM-768"
+        assert primary == "ML-DSA-65"
+        assert hybrid is not None

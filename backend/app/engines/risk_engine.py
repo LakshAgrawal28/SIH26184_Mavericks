@@ -1,5 +1,7 @@
 from app.engines.taxonomy import get_classical_weakness, get_qv
 
+# Weighting and band cutoffs are documented in docs/RISK_MODEL.md (HNDL 0.6 / operational 0.4).
+
 
 def compute_risk(
     algorithm: str | None,

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_scan_for_user, user_from_access_token
 from app.db.session import SessionLocal, get_db
 from app.engines.mosca_engine import compute_mosca, describe_transition
 from app.engines.pqc_engine import recommend
@@ -31,10 +31,20 @@ async def create_scan(
     if len(content) > settings.scan_max_bytes:
         raise HTTPException(status_code=400, detail="File too large")
 
+    filename = (file.filename or "").lower()
+    content_type = (file.content_type or "").lower()
+    looks_like_tar = filename.endswith(".tar") or "x-tar" in content_type or content_type == "application/tar"
+    if looks_like_tar and target_type == "zip_archive":
+        target_type = "container_image"
+
+    upload_basename = "upload.tar" if target_type == "container_image" else "upload.zip"
+    storage_suffix = ".tar" if target_type == "container_image" else ".zip"
+
     scan = Scan(
         name=name,
         target_type=target_type,
         status="queued",
+        owner_id=user.id,
         data_lifetime_x=data_lifetime_x,
         migration_time_y=migration_time_y,
     )
@@ -47,18 +57,22 @@ async def create_scan(
 
         work_root = Path(settings.scan_work_dir) / str(scan.id)
         work_root.mkdir(parents=True, exist_ok=True)
-        zip_path = work_root / "upload.zip"
-        with open(zip_path, "wb") as f:
+        upload_path = work_root / upload_basename
+        with open(upload_path, "wb") as f:
             f.write(content)
-        scan.storage_path = str(zip_path)
+        scan.storage_path = str(upload_path)
         db.commit()
         from app.services.scan_service import run_scan_job
 
         run_scan_job(db, scan.id)
         db.refresh(scan)
     else:
-        key = f"scans/raw/{scan.id}.zip"
-        storage_service.upload_bytes(key, content, file.content_type or "application/zip")
+        key = f"scans/raw/{scan.id}{storage_suffix}"
+        storage_service.upload_bytes(
+            key,
+            content,
+            file.content_type or ("application/x-tar" if target_type == "container_image" else "application/zip"),
+        )
         scan.storage_path = key
         db.commit()
         from app.workers.celery_app import run_crypto_scan
@@ -76,7 +90,10 @@ async def create_scan(
 
 @router.get("")
 def list_scans(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scans = db.query(Scan).order_by(Scan.created_at.desc()).all()
+    query = db.query(Scan)
+    if user.role != "admin":
+        query = query.filter(Scan.owner_id == user.id)
+    scans = query.order_by(Scan.created_at.desc()).all()
     return {
         "scans": [
             ScanSummary(
@@ -98,9 +115,7 @@ def list_scans(db: Session = Depends(get_db), user: User = Depends(get_current_u
 
 @router.get("/{scan_id}")
 def get_scan(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+    scan = get_scan_for_user(db, scan_id, user)
     return {
         "scan_id": str(scan.id),
         "name": scan.name,
@@ -122,9 +137,7 @@ def get_scan(scan_id: str, db: Session = Depends(get_db), user: User = Depends(g
 
 @router.put("/{scan_id}/context")
 def update_context(scan_id: str, body: ContextUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+    scan = get_scan_for_user(db, scan_id, user)
     previous = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, _max_risk(db, scan.id))
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(scan, field, value)
@@ -142,12 +155,13 @@ def list_artefacts(
     scan_id: str,
     asset_type: str | None = None,
     risk_band: str | None = None,
-    limit: int = 100,
+    limit: int = Query(100, ge=1, le=500),
     offset: int = 0,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = db.query(Artefact).filter(Artefact.scan_id == uuid.UUID(scan_id))
+    scan = get_scan_for_user(db, scan_id, user)
+    q = db.query(Artefact).filter(Artefact.scan_id == scan.id)
     if asset_type:
         q = q.filter(Artefact.asset_type == asset_type)
     if risk_band:
@@ -190,9 +204,7 @@ def list_artefacts(
 
 @router.get("/{scan_id}/summary")
 def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+    scan = get_scan_for_user(db, scan_id, user)
     artefacts = db.query(Artefact).filter(Artefact.scan_id == scan.id).all()
     bands: dict[str, int] = {}
     methods: dict[str, int] = {}
@@ -224,6 +236,81 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
     }
 
 
+def _artefact_brief(a: Artefact) -> dict:
+    return {
+        "artefact_id": str(a.id),
+        "bom_ref": a.bom_ref,
+        "name": a.name,
+        "asset_type": a.asset_type,
+        "risk_band": a.risk_band,
+        "file_path": a.file_path,
+        "final_risk_score": a.final_risk_score,
+    }
+
+
+@router.get("/{scan_id}/diff")
+def scan_diff(
+    scan_id: str,
+    against: str = Query(..., description="Baseline scan ID to compare against"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    current = get_scan_for_user(db, scan_id, user)
+    baseline = get_scan_for_user(db, against, user)
+
+    current_by_ref = {a.bom_ref: a for a in db.query(Artefact).filter(Artefact.scan_id == current.id).all()}
+    baseline_by_ref = {a.bom_ref: a for a in db.query(Artefact).filter(Artefact.scan_id == baseline.id).all()}
+
+    added_refs = set(current_by_ref) - set(baseline_by_ref)
+    removed_refs = set(baseline_by_ref) - set(current_by_ref)
+    risk_band_changed = []
+    for ref in set(current_by_ref) & set(baseline_by_ref):
+        cur = current_by_ref[ref]
+        base = baseline_by_ref[ref]
+        if cur.risk_band != base.risk_band:
+            risk_band_changed.append(
+                {
+                    **_artefact_brief(cur),
+                    "previous_risk_band": base.risk_band,
+                    "previous_final_risk_score": base.final_risk_score,
+                }
+            )
+
+    before_mosca = compute_mosca(baseline.data_lifetime_x, baseline.migration_time_y, _max_risk(db, baseline.id))
+    after_mosca = compute_mosca(current.data_lifetime_x, current.migration_time_y, _max_risk(db, current.id))
+
+    return {
+        "scan_id": str(current.id),
+        "against_scan_id": str(baseline.id),
+        "added": [_artefact_brief(current_by_ref[r]) for r in sorted(added_refs)],
+        "removed": [_artefact_brief(baseline_by_ref[r]) for r in sorted(removed_refs)],
+        "risk_band_changed": risk_band_changed,
+        "counts": {
+            "added": len(added_refs),
+            "removed": len(removed_refs),
+            "risk_band_changed": len(risk_band_changed),
+            "critical_before": baseline.critical_risk_count,
+            "critical_after": current.critical_risk_count,
+            "high_before": baseline.high_risk_count,
+            "high_after": current.high_risk_count,
+        },
+        "mosca": {
+            "before": {
+                "baseline_category": before_mosca["baseline_category"],
+                "overall_category": before_mosca["overall_category"],
+            },
+            "after": {
+                "baseline_category": after_mosca["baseline_category"],
+                "overall_category": after_mosca["overall_category"],
+            },
+            "transition": describe_transition(
+                before_mosca["baseline_category"],
+                after_mosca["baseline_category"],
+            ),
+        },
+    }
+
+
 def _max_risk(db: Session, scan_id) -> float:
     max_risk = (
         db.query(Artefact.final_risk_score)
@@ -243,9 +330,7 @@ def scan_mosca(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+    scan = get_scan_for_user(db, scan_id, user)
     fr = _max_risk(db, scan.id)
     saved = compute_mosca(scan.data_lifetime_x, scan.migration_time_y, fr)
     use_x = scan.data_lifetime_x if x is None else x
@@ -263,9 +348,10 @@ def scan_mosca(
 
 @router.get("/{scan_id}/recommendations")
 def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    scan = get_scan_for_user(db, scan_id, user)
     items = (
         db.query(Artefact)
-        .filter(Artefact.scan_id == uuid.UUID(scan_id))
+        .filter(Artefact.scan_id == scan.id)
         .order_by(Artefact.final_risk_score.desc())
         .all()
     )
@@ -274,7 +360,9 @@ def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User
     dirty = False
     for a in items:
         action, primary, hybrid, rationale, effort, nist_std, urgency = recommend(
-            a.algorithm or a.library_name or a.name, a.risk_band or "LOW"
+            a.algorithm or a.library_name or a.name,
+            a.risk_band or "LOW",
+            primitive=a.primitive,
         )
         if (
             a.recommendation_action != action
@@ -319,15 +407,44 @@ def scan_recommendations(scan_id: str, db: Session = Depends(get_db), user: User
 
 
 @router.websocket("/{scan_id}/progress")
-async def scan_progress_ws(websocket: WebSocket, scan_id: str):
+async def scan_progress_ws(
+    websocket: WebSocket,
+    scan_id: str,
+    token: str | None = Query(default=None),
+):
     """Push scan status. Uses Redis when available; otherwise polls the database (local SYNC_SCAN)."""
+    if not token:
+        await websocket.close(code=1008, reason="Not authenticated")
+        return
+    db = SessionLocal()
+    try:
+        try:
+            user = user_from_access_token(token, db)
+        except HTTPException:
+            await websocket.close(code=1008, reason="Not authenticated")
+            return
+        owned = (
+            db.query(Scan)
+            .filter(Scan.id == uuid.UUID(scan_id), Scan.owner_id == user.id)
+            .first()
+        )
+        if not owned:
+            await websocket.close(code=1008, reason="Scan not found")
+            return
+    finally:
+        db.close()
+
     await websocket.accept()
     import asyncio
 
     def snapshot() -> dict | None:
         db = SessionLocal()
         try:
-            scan = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id)).first()
+            scan = (
+                db.query(Scan)
+                .filter(Scan.id == uuid.UUID(scan_id), Scan.owner_id == user.id)
+                .first()
+            )
             if not scan:
                 return None
             return {

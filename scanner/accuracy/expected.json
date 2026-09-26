@@ -38,6 +38,15 @@
         {"family": "TLS"}
       ]
     },
+    "c-openssl": {
+      "required": [
+        {"family": "AES", "file_substr": "legacy_crypto.c"},
+        {"family": "RSA"},
+        {"family": "MD5"},
+        {"family": "SHA-1"},
+        {"family": "DES"}
+      ]
+    },
     "openssl-certs": {
       "required": [
         {"asset_type": "certificate"}

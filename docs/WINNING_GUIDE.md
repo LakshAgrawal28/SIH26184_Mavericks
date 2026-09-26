@@ -58,7 +58,7 @@ SIH evaluates ideas and implementations on:
 | Criterion | Our answer (what to say) | Proof in demo |
 |-----------|--------------------------|---------------|
 | **Novelty** | First unified CBOM + quantum risk + Mosca + PQC platform for Indian gov/enterprise; integrates discovery across code + binaries + containers with evidence-backed findings | Live scan → unique risk timeline + hybrid recs |
-| **Complexity** | Multi-layer scanner (Semgrep, Syft, cert parsing, binary analysis), CycloneDX CBOM generation, composite risk engine, Mosca scenarios | Show architecture diagram + evidence drill-down |
+| **Complexity** | Multi-layer scanner (Semgrep, Syft, cert parsing, binary string scanning), CycloneDX CBOM generation, composite risk engine, Mosca scenarios | Show architecture diagram + evidence drill-down |
 | **Clarity** | Follows NIST SP 1800-38 discovery model + CycloneDX ECMA-424 standard | Valid CBOM JSON export |
 | **Feasibility** | Built on proven OSS (Semgrep, Syft, FastAPI, CycloneDX); Docker Compose one-command start | `docker compose up` → working demo |
 | **Practicability** | On-prem capable, no mandatory cloud, handles air-gapped gov environments | Mention offline mode, no external API calls |

@@ -1,0 +1,85 @@
+# ECDAT Semgrep — C/C++ OpenSSL EVP and legacy API surface
+rules:
+  - id: ecdat.c-evp-aes-cbc
+    pattern-either:
+      - pattern: EVP_EncryptInit_ex($CTX, EVP_aes_256_cbc(), ...)
+      - pattern: EVP_EncryptInit_ex($CTX, EVP_aes_128_cbc(), ...)
+      - pattern: EVP_DecryptInit_ex($CTX, EVP_aes_256_cbc(), ...)
+    message: OpenSSL EVP AES-CBC usage. Prefer AES-256-GCM via EVP AEAD APIs.
+    languages: [c, cpp]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      algorithm: AES
+      primitive: block-cipher
+      mode: cbc
+      ecdat_confidence: 0.93
+
+  - id: ecdat.c-evp-md5
+    pattern-either:
+      - pattern: EVP_DigestInit_ex($CTX, EVP_md5(), ...)
+      - pattern: EVP_DigestInit($CTX, EVP_md5())
+    message: OpenSSL EVP MD5 digest detected. MD5 is broken for integrity; use SHA-256 or SHA-3.
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: MD5
+      primitive: hash
+      cwe: CWE-327
+      ecdat_confidence: 0.94
+
+  - id: ecdat.c-rsa-generate
+    pattern-either:
+      - pattern: RSA_generate_key(...)
+      - pattern: RSA_generate_key_ex(...)
+    message: RSA key generation via legacy OpenSSL RSA API. RSA is quantum-vulnerable; plan ML-KEM / hybrid TLS.
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: RSA
+      primitive: pke
+      nist_standard: NIST FIPS 203
+      ecdat_confidence: 0.92
+
+  - id: ecdat.c-sha1-init
+    pattern-either:
+      - pattern: SHA1_Init(...)
+      - pattern: SHA1_Update(...)
+    message: SHA-1 hash usage detected. SHA-1 is deprecated for signatures and collision-sensitive uses.
+    languages: [c, cpp]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      algorithm: SHA-1
+      primitive: hash
+      ecdat_confidence: 0.91
+
+  - id: ecdat.c-des-set-key
+    pattern-either:
+      - pattern: DES_set_key(...)
+      - pattern: DES_set_key_checked(...)
+      - pattern: DES_ecb_encrypt(...)
+    message: DES / 3DES API usage detected. Replace with AES-256-GCM.
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      category: cryptography
+      algorithm: DES
+      primitive: block-cipher
+      cwe: CWE-327
+      ecdat_confidence: 0.95
+
+  - id: ecdat.c-evp-pkey-rsa
+    pattern-either:
+      - pattern: EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, ...)
+      - pattern: EVP_PKEY_assign_RSA(...)
+    message: OpenSSL EVP RSA public-key operations detected.
+    languages: [c, cpp]
+    severity: WARNING
+    metadata:
+      category: cryptography
+      algorithm: RSA
+      primitive: pke
+      ecdat_confidence: 0.9

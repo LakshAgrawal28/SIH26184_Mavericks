@@ -18,6 +18,8 @@ LANG_EXTENSIONS = {
     "javascript": {".js", ".jsx", ".mjs", ".cjs"},
     "typescript": {".ts", ".tsx"},
     "go": {".go"},
+    "c": {".c", ".h"},
+    "cpp": {".cpp", ".cc", ".cxx", ".hpp", ".hh"},
 }
 
 _QUOTED = re.compile(r'"([^"]+)"')

@@ -3,6 +3,8 @@
 **Project:** Enterprise Cryptographic Discovery & Analysis Tool (ECDAT)  
 **Problem Statement ID:** 26164 (NTRO)  
 
+**Risk formula & Mosca Z scenarios:** see [RISK_MODEL.md](./RISK_MODEL.md).
+
 ---
 
 ## 📊 1. Master Algorithm Risk & Quantum Status Lookup

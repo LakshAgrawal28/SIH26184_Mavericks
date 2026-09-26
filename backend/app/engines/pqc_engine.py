@@ -1,4 +1,4 @@
-from app.engines.taxonomy import PQC_MAP
+from app.engines.taxonomy import PQC_MAP, canonicalize_algorithm
 
 NIST_STANDARDS = {
     "ML-KEM-512": "FIPS 203",
@@ -16,38 +16,27 @@ NIST_STANDARDS = {
 }
 
 
-def _canonical(algorithm: str) -> str:
-    u = algorithm.upper().replace("_", "-")
-    if "JSONWEBTOKEN" in u or "JWT" in u:
-        if "RS256" in u:
-            return "RS256"
-        if "ES256" in u:
-            return "ES256"
-        if "HS256" in u:
-            return "HS256"
-        return "JWT"
-    if "BCRYPT" in u:
-        return "BCRYPT"
-    if "INSECURESKIPVERIFY" in u:
-        return "TLS-INSECURESKIPVERIFY"
-    if "TLS-1.0" in u or "TLSV1 " in u or u.endswith("TLSV1"):
-        return "TLS-1.0"
-    if "TLS-1.1" in u:
-        return "TLS-1.1"
-    if "TLS" in u:
-        return "TLS"
-    return u
+def _pqc_lookup_key(algorithm: str) -> str:
+    canonical, mapped = canonicalize_algorithm(algorithm)
+    if mapped and canonical:
+        return canonical.upper().replace("_", "-")
+    return (canonical or algorithm).upper().replace("_", "-")
 
 
-def recommend(algorithm: str | None, risk_band: str) -> tuple[str, str | None, str | None, str, str, str | None, str]:
+def recommend(
+    algorithm: str | None,
+    risk_band: str,
+    primitive: str | None = None,
+) -> tuple[str, str | None, str | None, str, str, str | None, str]:
     timeline_urgency = "IMMEDIATE" if risk_band in ("CRITICAL", "HIGH") else ("PLANNED" if risk_band == "MEDIUM" else "MONITORING")
 
     if not algorithm:
         return "Monitor", None, None, "Insufficient algorithm metadata for PQC mapping.", "Low", None, timeline_urgency
 
-    key = _canonical(algorithm)
+    key = _pqc_lookup_key(algorithm)
     for map_key, (primary, hybrid, action) in sorted(PQC_MAP.items(), key=lambda x: len(x[0]), reverse=True):
-        if map_key in key or key.startswith(map_key) or map_key in algorithm.upper():
+        map_u = map_key.upper().replace("_", "-")
+        if map_u in key or key.startswith(map_u) or map_u in algorithm.upper().replace("_", "-"):
             rationale = f"{algorithm} is mapped to {primary or 'no change'} per NIST guidance."
             if risk_band in ("CRITICAL", "HIGH") and action == "Keep":
                 action = "Monitor"
@@ -57,6 +46,36 @@ def recommend(algorithm: str | None, risk_band: str) -> tuple[str, str | None, s
                 timeline_urgency = "PLANNED"
             return action, primary, hybrid, rationale, effort, nist_standard, timeline_urgency
 
+    prim = (primitive or "").strip().lower().replace("_", "-")
     if risk_band in ("CRITICAL", "HIGH"):
-        return "Migrate", "ML-KEM-768", "X25519MLKEM768", "Legacy public-key crypto should migrate to NIST PQC standards.", "Medium", "FIPS 203", timeline_urgency
+        if prim == "signature":
+            return (
+                "Migrate",
+                "ML-DSA-65",
+                "ECDSA-P256+ML-DSA-65",
+                "Unmapped signature primitive — default NIST signature replacement (FIPS 204).",
+                "Medium",
+                "FIPS 204",
+                timeline_urgency,
+            )
+        if prim in ("kem", "key-agree", "pke"):
+            return (
+                "Migrate",
+                "ML-KEM-768",
+                "X25519MLKEM768",
+                "Unmapped key-exchange primitive — default NIST KEM replacement (FIPS 203).",
+                "Medium",
+                "FIPS 203",
+                timeline_urgency,
+            )
+        if prim == "hash":
+            return (
+                "Monitor",
+                None,
+                None,
+                "Review manually — hash functions have no direct PQC primitive replacement.",
+                "Low",
+                None,
+                timeline_urgency,
+            )
     return "Monitor", None, None, "Review manually for PQC migration path.", "Low", None, timeline_urgency

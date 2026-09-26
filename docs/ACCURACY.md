@@ -63,3 +63,74 @@ This is still a **reviewed catalog, not an LLM** — every finding traces to a s
 or filename rule in `scanner/catalog/signatures.py`, so the deterministic/anti-invention
 guarantees above are unchanged. Extending coverage means adding a line to that file, not
 retraining anything.
+
+## Real-world validation
+
+Corpus recall (above) measures whether labelled fixtures are hit. It does **not** estimate
+false-positive rate or precision on code nobody on the team wrote. This section records
+occasional runs against an **unmodified external repository** that is **not** under
+`scanner/corpus/` and was **not** used to tune detectors.
+
+### How to run (external repo)
+
+```bash
+git clone --depth 1 <REPO_URL> /tmp/ecdat-external-validation
+cd <ECDAT_ROOT>
+PYTHONPATH=backend:. python3 -c "
+from pathlib import Path
+from scanner.detectors.pipeline import run_all_detectors
+root = Path('/tmp/ecdat-external-validation')
+print('finding_rows', len(run_all_detectors(root)))
+"
+```
+
+Optional: export a review sample (adjust path):
+
+```bash
+PYTHONPATH=backend:. python3 - <<'PY'
+from pathlib import Path
+from scanner.detectors.pipeline import run_all_detectors
+root = Path("/tmp/ecdat-external-validation")
+for f in run_all_detectors(root)[:50]:
+    print(f"{f.detection_method}|{f.algorithm}|{f.file_path}:{f.line_number}")
+PY
+```
+
+**Precision review protocol (manual):** sample 20–30 finding rows (stratify by
+`detection_method` and include non-test paths when present). For each row, open the cited
+file/line and mark **true positive** if it reflects real crypto usage, material, or
+configuration (including test vectors and fixture keys in a crypto library). Mark **false
+positive** if the hit is only a substring/name collision (e.g. identifier `JsonWebTokenError`
+matched as `JWT`) or a wrong algorithm label with no crypto at that line. Report
+`precision ≈ TP / (TP + FP)` on the sample; state sample size and date.
+
+Do **not** change detectors to improve this number after the run (that would invalidate the
+exercise).
+
+### Run log template
+
+| Field | Value |
+|--------|--------|
+| **Repository** | *(owner/name + URL)* |
+| **Commit / clone** | `--depth 1` on `main` *(or SHA)* |
+| **Scan date** | *YYYY-MM-DD* |
+| **Finding rows** | *integer from `run_all_detectors`* |
+| **Invented algorithms** | *0 expected; same denylist as `expected.json`* |
+| **Manual sample size** | *e.g. 25 rows* |
+| **Precision estimate** | *TP/(TP+FP), approximate* |
+| **Notes** | *dominant FP patterns, test vs prod paths, etc.* |
+
+### Run log — auth0/node-jsonwebtoken (preliminary)
+
+| Field | Value |
+|--------|--------|
+| **Repository** | [auth0/node-jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) |
+| **Commit / clone** | `--depth 1` on default branch, 2026-09-26 |
+| **Scan date** | 2026-09-26 |
+| **Finding rows** | **502** |
+| **Invented algorithms** | **0** (no GOST/Camellia/Twofish-style denylist hits) |
+| **Manual sample size** | **25** rows (stratified across `semgrep-rules`, `catalog-api`, `jwt`, `pem-marker`, `x509-parser`, `package-json`, plus `sign.js` / `verify.js`) |
+| **Precision estimate** | **~72%** (18 TP, 7 FP on the sample) |
+| **Notes** | Expected for a JWT library: many legitimate HS256/RS256/ES256 test usages, embedded PEM keys, and two parsed X.509 fixtures. Dominant noise: `catalog-api` / `jwt` rows on lines that only mention `JsonWebTokenError` or the word `jwt` in error strings, and some `jwt` rows attributing `HS256` to non-crypto require lines. Core library files (`sign.js`, `verify.js`, `lib/validateAsymmetricKey.js`, `package.json`) were **100% TP** on reviewed lines. No detector changes were made for this repo. |
+
+Detection-method mix for this run (all rows): `catalog-api` 255, `jwt` 192, `semgrep-rules` 34, `pem-marker` 10, `algo-name` 6, `x509-parser` 2, `crypto-lib-ref` 2, `package-json` 1.

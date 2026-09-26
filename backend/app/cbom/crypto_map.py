@@ -1,7 +1,7 @@
 """Map internal artefact fields onto CycloneDX 1.6 crypto property enums."""
 from __future__ import annotations
 
-from app.engines.taxonomy import get_qv
+from app.engines.taxonomy import canonicalize_algorithm, get_qv
 
 _PRIMITIVES = {
     "drbg", "mac", "block-cipher", "stream-cipher", "signature", "hash",
@@ -16,7 +16,9 @@ def map_primitive(algorithm: str | None, primitive: str | None, mode: str | None
     raw = (primitive or "").strip().lower().replace("_", "-")
     if raw in _PRIMITIVES:
         return raw
-    blob = f"{algorithm or ''} {primitive or ''} {mode or ''}".upper()
+    canon, mapped = canonicalize_algorithm(algorithm)
+    algo_label = canon if mapped else algorithm
+    blob = f"{algo_label or ''} {primitive or ''} {mode or ''}".upper()
     if any(x in blob for x in ("ML-KEM", "KYBER", "KEM")):
         return "kem"
     if any(x in blob for x in ("ML-DSA", "DILITHIUM", "SLH-DSA", "SPHINCS", "ECDSA", "ED25519", "DSA")):

@@ -3,9 +3,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 
+from app.core.ids import parse_scan_id
 from app.core.security import decode_token
 from app.db.session import get_db
-from app.models import User
+from app.models import Scan, User
 
 security = HTTPBearer(auto_error=False)
 
@@ -27,4 +28,40 @@ def get_current_user(
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    token_version = payload.get("tv", 0)
+    if token_version != user.token_version:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
+
     return user
+
+
+def user_from_access_token(token: str, db: Session) -> User:
+    try:
+        payload = decode_token(token)
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except JWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    token_version = payload.get("tv", 0)
+    if token_version != user.token_version:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
+
+    return user
+
+
+def get_scan_for_user(db: Session, scan_id: str, user: User) -> Scan:
+    scan = (
+        db.query(Scan)
+        .filter(Scan.id == parse_scan_id(scan_id), Scan.owner_id == user.id)
+        .first()
+    )
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return scan

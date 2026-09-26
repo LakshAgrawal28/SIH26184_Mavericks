@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,6 +10,8 @@ from app.config import settings
 from app.core.security import ensure_default_admin
 from app.corpus_bootstrap import ensure_quick_start_archives
 from app.db.session import Base, SessionLocal, engine
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -23,12 +26,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ECDAT API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="ECDAT API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,8 +49,9 @@ def health():
     try:
         db.execute(text("SELECT 1"))
         status["database"] = "ok"
-    except Exception as exc:
-        status["database"] = f"error: {exc}"
+    except Exception:
+        logger.exception("Health check: database unavailable")
+        status["database"] = "error"
     finally:
         db.close()
     try:
@@ -57,6 +60,7 @@ def health():
         r = redis.from_url(settings.redis_url)
         r.ping()
         status["redis"] = "ok"
-    except Exception as exc:
-        status["redis"] = f"error: {exc}"
+    except Exception:
+        logger.exception("Health check: redis unavailable")
+        status["redis"] = "error"
     return status

@@ -16,6 +16,7 @@ CORPUS_DIRS = [
     "nodejs-jwt",
     "weak-configs",
     "go-tls",
+    "c-openssl",
     "openssl-certs",
     "pqc-modern",
     "mixed-enterprise",
