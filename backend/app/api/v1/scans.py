@@ -298,7 +298,10 @@ def scan_diff(
 ):
     current = get_scan_for_user(db, scan_id, user)
     baseline = get_scan_for_user(db, against, user)
-    return compute_scan_diff(db, current, baseline)
+    try:
+        return compute_scan_diff(db, current, baseline)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/{scan_id}/mosca")

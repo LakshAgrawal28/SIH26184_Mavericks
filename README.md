@@ -329,8 +329,9 @@ The dashboard exposes **live sliders** for \(X\) and \(Y\), instantly updating u
 </div>
 
 ```
-Login:  admin@example.com
-Password: admin123
+For local development without a `.env`, use **Sign up** to create an account.
+If `DEFAULT_ADMIN_PASSWORD` is configured, the default admin uses that password;
+otherwise its password is generated once at first startup.
 ```
 
 > **Note:** Free-tier Render services spin down after ~15 minutes of inactivity. The first API request after idle may take **30–60 seconds** — the login page shows live API status while the backend wakes up.
@@ -547,7 +548,8 @@ cp .env.example .env.local
 npm install && npm run dev
 ```
 
-Open **http://localhost:3000** · Login: `admin@example.com` / `admin123`
+Open **http://localhost:3000** · Create an account with **Sign up** (or use the
+configured default admin credentials).
 
 ---
 

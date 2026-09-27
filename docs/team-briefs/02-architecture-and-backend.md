@@ -22,10 +22,12 @@ Two ways to run:
 
 | Mode | When | How scans run |
 |------|------|----------------|
-| **Local sync** | Demo laptop | `SYNC_SCAN=true` — FastAPI runs the scan in the same request |
+| **Local sync** | Demo laptop | Default (`SYNC_SCAN=true`) — FastAPI runs the scan in the same request |
 | **Compose** | Full stack | Upload to MinIO → Celery worker → Redis progress pub/sub |
 
-Login (dev): `admin@example.com` / `admin123`  
+For local development without a `.env`, create an account from **Sign up**. The
+default admin password is generated once at first startup; set
+`DEFAULT_ADMIN_PASSWORD` explicitly if you need a known admin credential.
 API: http://localhost:8000/docs · UI: http://localhost:3000  
 
 ---
@@ -95,7 +97,9 @@ Health: `GET /health` (API + DB + optional Redis).
 | Risk / Mosca / PQC | `backend/app/engines/` |
 | CBOM build + schema | `backend/app/cbom/` |
 
-Local helper: `scripts/dev-api.sh` sets `SYNC_SCAN=true` and starts uvicorn.
+Local helper: `scripts/dev-api.sh` sets `SYNC_SCAN=true` and starts uvicorn. The backend
+also defaults to synchronous scanning when no environment file is present, so a local
+SQLite-only setup does not require Redis or MinIO.
 
 ---
 

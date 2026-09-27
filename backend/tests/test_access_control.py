@@ -59,3 +59,36 @@ def test_cross_user_scan_isolation(client):
     assert list_resp.status_code == 200
     ids = {s["scan_id"] for s in list_resp.json()["scans"]}
     assert scan_id not in ids
+
+
+def test_signup_creates_user_and_returns_token(client):
+    response = client.post(
+        "/api/v1/auth/signup",
+        json={"name": "New Operator", "email": "new.operator@example.com", "password": "secure-pass-123"},
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["access_token"]
+    assert body["user"]["email"] == "new.operator@example.com"
+    assert body["user"]["role"] == "user"
+    token = body["access_token"]
+
+    me = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer " + token},
+    )
+    assert me.status_code == 200
+    assert me.json()["name"] == "New Operator"
+
+
+def test_signup_rejects_duplicate_email_and_weak_password(client):
+    payload = {"name": "New Operator", "email": "duplicate@example.com", "password": "secure-pass-123"}
+    assert client.post("/api/v1/auth/signup", json=payload).status_code == 201
+    duplicate = client.post("/api/v1/auth/signup", json=payload)
+    assert duplicate.status_code == 409
+
+    weak = client.post(
+        "/api/v1/auth/signup",
+        json={"name": "Weak User", "email": "weak@example.com", "password": "short"},
+    )
+    assert weak.status_code == 422

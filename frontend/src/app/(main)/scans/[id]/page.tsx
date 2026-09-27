@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { API_URL, apiFetch, getToken } from "@/lib/api";
+import { API_URL, apiFetch, copyText, getToken } from "@/lib/api";
 import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
 import NarrativeMarkdown from "@/components/NarrativeMarkdown";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,16 @@ function urgencyStyle(category: string) {
   return "border border-[#1B7A3D] text-[#1B7A3D]";
 }
 
+type DiffItem = {
+  bom_ref?: string;
+  name?: string;
+  risk_band?: string;
+  previous_risk_band?: string;
+  final_risk_score?: number;
+  previous_final_risk_score?: number;
+  score_delta?: number;
+};
+
 export default function ScanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -69,23 +79,50 @@ export default function ScanDetailPage() {
   const [moscaSaving, setMoscaSaving] = useState(false);
   const [diffAgainstId, setDiffAgainstId] = useState("");
   const [scanDiff, setScanDiff] = useState<{
+    added?: DiffItem[];
+    removed?: DiffItem[];
+    risk_band_changed?: DiffItem[];
+    score_changed?: DiffItem[];
     counts?: {
       added: number;
       removed: number;
       risk_band_changed: number;
+      score_changed?: number;
       critical_before: number;
       critical_after: number;
+      total_artefacts_before?: number;
+      total_artefacts_after?: number;
     };
     mosca?: { transition?: { label: string } };
   } | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
   const [diffHighlight, setDiffHighlight] = useState(false);
+  const [scanIdCopied, setScanIdCopied] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ available: boolean; enabled: boolean } | null>(null);
   const [narrative, setNarrative] = useState<string | null>(null);
+  const [narrativeMeta, setNarrativeMeta] = useState<{
+    contextTruncated?: boolean;
+    artefactsInContext?: number;
+    totalArtefacts?: number;
+    disclaimer?: string;
+  } | null>(null);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [narrativeError, setNarrativeError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  async function copyScanId() {
+    try {
+      await copyText(id);
+      setScanIdCopied(true);
+      window.setTimeout(() => setScanIdCopied(false), 1500);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Unable to copy scan ID.");
+    }
+  }
 
   useEffect(() => {
     apiFetch<{ available: boolean; enabled: boolean }>("/api/v1/meta/ai")
@@ -113,6 +150,44 @@ export default function ScanDetailPage() {
       setCbomValidation(validation);
     } catch {
       setCbomValidation(null);
+    }
+    try {
+      const history = await apiFetch<{
+        results?: {
+          kind: string;
+          content: string;
+          metadata?: {
+            question?: string;
+            context_metadata?: {
+              truncated?: boolean;
+              included_artefacts?: number;
+              available_artefacts?: number;
+            };
+          };
+        }[];
+      }>(`/api/v1/scans/${id}/ai-results?limit=20`);
+      const latestNarration = history.results?.find((result) => result.kind === "narration");
+      if (latestNarration) {
+        setNarrative(latestNarration.content);
+        const metadata = latestNarration.metadata?.context_metadata;
+        setNarrativeMeta({
+          contextTruncated: metadata?.truncated,
+          artefactsInContext: metadata?.included_artefacts,
+          totalArtefacts: metadata?.available_artefacts,
+        });
+      }
+      const chat = (history.results || [])
+        .filter((result) => result.kind === "chat")
+        .reverse()
+        .flatMap((result) => [
+          ...(result.metadata?.question
+            ? [{ role: "user" as const, text: result.metadata.question }]
+            : []),
+          { role: "assistant" as const, text: result.content },
+        ]);
+      if (chat.length > 0) setChatMessages(chat);
+    } catch {
+      // AI history is optional and may be unavailable when the feature is disabled.
     }
   }, [id]);
 
@@ -208,14 +283,27 @@ export default function ScanDetailPage() {
 
   async function runExecutiveNarrative() {
     setNarrativeLoading(true);
+    setNarrativeError(null);
     try {
-      const data = await apiFetch<{ narrative: string; disclaimer?: string }>(
+      const data = await apiFetch<{
+        narrative: string;
+        disclaimer?: string;
+        context_truncated?: boolean;
+        artefacts_in_context?: number;
+        total_artefacts?: number;
+      }>(
         `/api/v1/scans/${id}/narrate`,
         { method: "POST", body: JSON.stringify({ style: "executive" }) }
       );
       setNarrative(data.narrative);
+      setNarrativeMeta({
+        contextTruncated: data.context_truncated,
+        artefactsInContext: data.artefacts_in_context,
+        totalArtefacts: data.total_artefacts,
+        disclaimer: data.disclaimer,
+      });
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Narration unavailable");
+      setNarrativeError(err instanceof Error ? err.message : "Narration unavailable");
     } finally {
       setNarrativeLoading(false);
     }
@@ -225,6 +313,7 @@ export default function ScanDetailPage() {
     const msg = chatInput.trim();
     if (!msg) return;
     setChatInput("");
+    setChatError(null);
     setChatMessages((prev) => {
       const withUser = [...prev, { role: "user" as const, text: msg }];
       return withUser;
@@ -247,13 +336,7 @@ export default function ScanDetailPage() {
       });
       setChatMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
     } catch (err) {
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: err instanceof Error ? err.message : "Assistant unavailable",
-        },
-      ]);
+      setChatError(err instanceof Error ? err.message : "Assistant unavailable");
     } finally {
       setChatLoading(false);
     }
@@ -262,6 +345,7 @@ export default function ScanDetailPage() {
   async function loadScanDiff() {
     if (!diffAgainstId.trim()) return;
     setDiffLoading(true);
+    setDiffError(null);
     try {
       const data = await apiFetch<typeof scanDiff>(
         `/api/v1/scans/${id}/diff?against=${encodeURIComponent(diffAgainstId.trim())}`
@@ -270,7 +354,8 @@ export default function ScanDetailPage() {
       setDiffHighlight(true);
       window.setTimeout(() => setDiffHighlight(false), 2400);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Diff failed");
+      const message = err instanceof Error ? err.message : "Diff failed";
+      setDiffError(message);
       setScanDiff(null);
     } finally {
       setDiffLoading(false);
@@ -321,6 +406,16 @@ export default function ScanDetailPage() {
     if (artefacts.length === 0) return 0;
     return Math.max(...artefacts.map((a) => a.risk.final_score ?? 0));
   }, [artefacts]);
+
+  const diffChangedItems = useMemo(() => {
+    if (!scanDiff) return [];
+    const items = [...(scanDiff.risk_band_changed || [])];
+    const refs = new Set(items.map((item) => item.bom_ref));
+    for (const item of scanDiff.score_changed || []) {
+      if (!refs.has(item.bom_ref)) items.push(item);
+    }
+    return items;
+  }, [scanDiff]);
 
   const clientScenarios = useMemo(() => {
     if (!mosca) return [];
@@ -397,6 +492,13 @@ export default function ScanDetailPage() {
           ) : undefined
         }
       />
+      <div className="mb-6 flex flex-wrap items-center gap-3 border border-border bg-surface px-4 py-3 text-sm">
+        <span className="font-medium text-foreground">Scan ID</span>
+        <code className="break-all font-mono text-xs text-ink-muted">{id}</code>
+        <Button type="button" variant="outline" size="sm" onClick={copyScanId}>
+          {scanIdCopied ? "Copied" : "Copy scan ID"}
+        </Button>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Status" value={scan.status} />
@@ -529,6 +631,15 @@ export default function ScanDetailPage() {
               <p className="mt-1 text-sm text-ink-muted">
                 Enter a baseline scan ID to see added/removed artefacts and Mosca category change.
               </p>
+              <div className="mt-3 border border-[#1B4B8C] bg-surface px-4 py-3 text-xs text-ink-muted">
+                <p className="font-medium text-foreground">How to compare scans</p>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+                  <li>Create and wait for the older baseline scan to reach Completed.</li>
+                  <li>From the Scans page, copy the older scan&apos;s full ID using Copy ID.</li>
+                  <li>Open the newer completed scan and paste that baseline ID here.</li>
+                  <li>Select Run diff.</li>
+                </ol>
+              </div>
               <div className="mt-4 flex flex-wrap items-end gap-3">
                 <div className="min-w-[16rem] flex-1">
                   <Label htmlFor="diff-against">Baseline scan ID</Label>
@@ -569,12 +680,53 @@ export default function ScanDetailPage() {
                       {scanDiff.counts.critical_before} → {scanDiff.counts.critical_after}
                     </dd>
                   </div>
+                  {scanDiff.counts.score_changed !== undefined && (
+                    <div>
+                      <dt className="text-ink-muted">Score changes</dt>
+                      <dd className="font-semibold text-foreground">{scanDiff.counts.score_changed}</dd>
+                    </div>
+                  )}
                 </dl>
               )}
+              {diffError && <p className="mt-3 text-sm text-[#B3261E]">{diffError}</p>}
               {scanDiff?.mosca?.transition?.label && (
                 <p className="mt-3 text-sm font-medium text-[#1B4B8C]">
                   Mosca: {scanDiff.mosca.transition.label}
                 </p>
+              )}
+              {scanDiff && (
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  {[
+                    { label: "Added", items: scanDiff.added || [], border: "border-[#1B7A3D]" },
+                    { label: "Removed", items: scanDiff.removed || [], border: "border-[#B3261E]" },
+                    { label: "Changed", items: diffChangedItems, border: "border-[#B8781F]" },
+                  ].map(({ label, items, border }) => (
+                    <div key={label} className={cn("border-l-2 pl-3", border)}>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                        {label} artefacts
+                      </h4>
+                      {Array.isArray(items) && items.length > 0 ? (
+                        <ul className="mt-2 space-y-2 text-sm">
+                          {items.slice(0, 10).map((item, index) => (
+                            <li key={`${item.bom_ref || item.name || "item"}-${index}`}>
+                              <p className="font-medium text-foreground">{item.name || item.bom_ref || "Unnamed artefact"}</p>
+                              <p className="font-mono text-xs text-ink-muted">
+                                {item.risk_band || "—"}
+                                {item.previous_risk_band ? ` ← ${item.previous_risk_band}` : ""}
+                                {item.score_delta !== undefined ? ` · Δ ${item.score_delta.toFixed(2)}` : ""}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-ink-muted">None</p>
+                      )}
+                      {Array.isArray(items) && items.length > 10 && (
+                        <p className="mt-2 text-xs text-ink-muted">Showing 10 of {items.length}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -984,7 +1136,25 @@ export default function ScanDetailPage() {
                     {narrativeLoading ? "Generating…" : "Generate summary"}
                   </Button>
                 </div>
-                {narrative && <NarrativeMarkdown content={narrative} />}
+                {narrativeError && (
+                  <p className="mt-3 border border-[#B3261E] bg-red-50 px-3 py-2 text-sm text-[#B3261E]">
+                    Summary could not be generated: {narrativeError}
+                  </p>
+                )}
+                {narrative && (
+                  <>
+                    {narrativeMeta?.contextTruncated && (
+                      <p className="mt-3 border border-[#B8781F] bg-amber-50 px-3 py-2 text-xs text-[#7A4B00]">
+                        This summary used the top {narrativeMeta.artefactsInContext ?? "selected"} highest-risk artefacts
+                        out of {narrativeMeta.totalArtefacts ?? scan.total_artefacts}. The deterministic inventory remains authoritative.
+                      </p>
+                    )}
+                    <NarrativeMarkdown content={narrative} />
+                    {narrativeMeta?.disclaimer && (
+                      <p className="mt-3 text-xs text-ink-muted">{narrativeMeta.disclaimer}</p>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="panel p-6">
@@ -1015,6 +1185,11 @@ export default function ScanDetailPage() {
                     </div>
                   ))}
                 </div>
+                {chatError && (
+                  <p className="mt-3 border border-[#B3261E] bg-red-50 px-3 py-2 text-sm text-[#B3261E]">
+                    Assistant error: {chatError}
+                  </p>
+                )}
                 <div className="mt-4 flex gap-2">
                   <Input
                     value={chatInput}
@@ -1027,7 +1202,11 @@ export default function ScanDetailPage() {
                       }
                     }}
                   />
-                  <Button type="button" disabled={chatLoading} onClick={() => void sendAssistantMessage()}>
+                  <Button
+                    type="button"
+                    disabled={chatLoading || !chatInput.trim()}
+                    onClick={() => void sendAssistantMessage()}
+                  >
                     {chatLoading ? "…" : "Send"}
                   </Button>
                 </div>

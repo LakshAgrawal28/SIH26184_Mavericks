@@ -32,7 +32,9 @@ class Settings(BaseSettings):
 
     scan_max_bytes: int = 524288000
     scan_work_dir: str = "/tmp/ecdat-scans"
-    sync_scan: bool = False  # set SYNC_SCAN=true for local dev without Celery worker
+    # Local development works without Redis/MinIO by default. Set SYNC_SCAN=false
+    # when running the Celery and object-storage services used by deployments.
+    sync_scan: bool = True
 
     ai_narration_enabled: bool = False
     groq_api_key: str | None = None

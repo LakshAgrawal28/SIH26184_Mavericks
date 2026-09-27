@@ -1,5 +1,8 @@
+import uuid
+
 from app.db.session import SessionLocal
 from app.models import Artefact, Scan, User
+from app.services.scan_diff import compute_scan_diff
 
 
 def _auth_headers(client) -> dict[str, str]:
@@ -130,6 +133,9 @@ def test_scan_diff_added_removed_and_risk_changes(client):
     assert body["counts"]["added"] == 1
     assert body["counts"]["removed"] == 1
     assert body["counts"]["risk_band_changed"] == 1
+    assert body["counts"]["score_changed"] == 1
+    assert body["counts"]["total_before"] == 3
+    assert body["counts"]["total_after"] == 3
     assert body["added"][0]["bom_ref"] == "crypto/algorithm/ddd"
     assert body["removed"][0]["bom_ref"] == "crypto/algorithm/bbb"
     assert body["risk_band_changed"][0]["bom_ref"] == "crypto/algorithm/aaa"
@@ -138,6 +144,77 @@ def test_scan_diff_added_removed_and_risk_changes(client):
     assert "transition" in body["mosca"]
     assert body["mosca"]["before"]["baseline_category"]
     assert body["mosca"]["after"]["baseline_category"]
+
+
+def test_scan_diff_rejects_incomplete_self_and_newer_baselines(client):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "admin@example.com").first()
+        baseline, current = _seed_pair(db, user)
+        current_id = str(current.id)
+        baseline.status = "running"
+        db.commit()
+    finally:
+        db.close()
+
+    headers = _auth_headers(client)
+    incomplete = client.get(
+        f"/api/v1/scans/{current_id}/diff",
+        params={"against": current_id},
+        headers=headers,
+    )
+    assert incomplete.status_code == 400
+    assert "itself" in incomplete.json()["detail"]
+
+    db = SessionLocal()
+    try:
+        current = db.query(Scan).filter(Scan.id == uuid.UUID(current_id)).first()
+        current.status = "completed"
+        current.created_at = current.created_at.replace(year=2025)
+        newer = Scan(name="newer", status="completed", owner_id=current.owner_id)
+        db.add(newer)
+        db.commit()
+        newer_id = str(newer.id)
+    finally:
+        db.close()
+
+    response = client.get(
+        f"/api/v1/scans/{current_id}/diff",
+        params={"against": newer_id},
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert "newer" in response.json()["detail"]
+
+
+def test_scan_diff_reports_duplicate_bom_refs_deterministically(client):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "admin@example.com").first()
+        baseline = Scan(name="baseline", status="completed", owner_id=user.id)
+        current = Scan(name="current", status="completed", owner_id=user.id)
+        db.add_all([baseline, current])
+        db.flush()
+        for suffix in ("b", "a"):
+            db.add(
+                Artefact(
+                    scan_id=current.id,
+                    bom_ref="duplicate/ref",
+                    name=suffix,
+                    asset_type="algorithm",
+                    risk_band="LOW",
+                    final_risk_score=1.0,
+                )
+            )
+        db.commit()
+        result = compute_scan_diff(db, current, baseline)
+        duplicate = result["duplicates"]["after"][0]
+    finally:
+        db.close()
+
+    assert duplicate["bom_ref"] == "duplicate/ref"
+    assert duplicate["count"] == 2
+    assert duplicate["artefact_ids"] == sorted(duplicate["artefact_ids"])
 
 
 def test_list_artefacts_limit_rejects_over_500(client):

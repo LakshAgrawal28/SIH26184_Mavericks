@@ -29,7 +29,7 @@ Every scoring, timing, and recommendation decision ECDAT makes today is a hardco
 | E6 | Source-language coverage | Real AST rules only for Java/Python/JS/TS/partial Go | Add a C/OpenSSL Semgrep rule pack | High | v1.2.0 |
 | E7 | Accuracy validation | Recall measured only against self-authored fixtures | Run against one real, unmodified external repo; publish precision estimate | High | v1.2.0 |
 | E8 | Container scanning | `target_type` field exists but is never branched on; no `.tar`/OCI support | Implement Docker-image-tar ingestion into the existing pipeline | Critical | v1.2.0 |
-| E9 | Scan comparison / trend | Each scan is an isolated snapshot; no diff, no history | Deterministic scan-to-scan diff engine + trend endpoint | High | v1.3.0 |
+| E9 | Scan comparison / trend | Each scan is an isolated snapshot; no diff, no history | Deterministic scan-to-scan diff engine + trend endpoint | **Implemented with validation and score deltas** | v1.3.0 |
 | E10 | AI narrative/chat layer | Not present | Optional, bounded LLM layer for narration and Q&A over deterministic data only | Nice-to-have | v1.4.0 (flagged) |
 
 ---
@@ -189,7 +189,7 @@ This is entirely deterministic — no model involved — and it directly enables
 
 ### E10 — AI narrative and comparison chat layer (optional, feature-flagged)
 
-**Status:** Proposed, not yet built. Ships disabled by default; the tool must be fully functional with this off (preserves the air-gapped/offline deployment story).
+**Status:** **Implemented and disabled by default.** The feature remains presentation-only and the tool is fully functional with it off, preserving the air-gapped/offline deployment story.
 
 **Explicit scope boundary — read this before implementing anything:**
 

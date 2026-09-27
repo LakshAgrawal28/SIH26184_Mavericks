@@ -11,6 +11,24 @@ export function getToken(): string | null {
   return localStorage.getItem("ecdat_token");
 }
 
+export async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Copy is unavailable in this browser.");
+}
+
 /** Cross-browser fetch timeout (AbortSignal.timeout is not universal). */
 export function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -68,7 +86,14 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
   const res = await fetchWithTimeout(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(err || res.statusText);
+    let message = err || res.statusText;
+    try {
+      const parsed = JSON.parse(err) as { detail?: string };
+      if (parsed.detail) message = parsed.detail;
+    } catch {
+      // Keep the plain-text response when it is not JSON.
+    }
+    throw new Error(message);
   }
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json() as Promise<T>;

@@ -14,8 +14,8 @@ type ApiStatus = "checking" | "online" | "offline";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
@@ -179,6 +179,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          <p className="mt-5 text-center text-sm text-ink-muted">
+            New to ECDAT?{" "}
+            <Link href="/signup" className="font-medium text-primary hover:underline">Create an account</Link>
+          </p>
           <p className="mt-4 font-mono text-[11px] text-ink-muted">Backend: {API_URL}</p>
         </div>
       </div>

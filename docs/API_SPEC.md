@@ -182,3 +182,20 @@ Generate and stream CycloneDX 1.6+ CBOM JSON file.
 
 ### `POST /api/v1/scans/{scan_id}/reports/pdf`
 Generate executive PDF summary report.
+
+---
+
+## 🤖 6. Comparative Diff & AI Endpoints
+
+`GET /api/v1/scans/{scan_id}/diff?against={baseline_scan_id}` requires both scans
+to be completed. The baseline must be a different, no-newer scan. The response
+retains `added`, `removed`, and `risk_band_changed`, and also includes
+`score_changed`, before/after `metrics`, and deterministic duplicate `bom_ref`
+diagnostics.
+
+`POST /api/v1/scans/{scan_id}/narrate` accepts only `executive`, `technical`, or
+`brief` styles. AI narration and chat responses are persisted as AI results and
+can be retrieved with `GET /api/v1/scans/{scan_id}/ai-results`. Comparative chat
+accepts `against_scan_id` subject to the same baseline validation. AI context
+includes `context_metadata` describing truncation and omitted artefacts; the
+deterministic diff is authoritative for comparative numeric and category claims.
