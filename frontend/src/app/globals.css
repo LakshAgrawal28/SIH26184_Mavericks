@@ -3,8 +3,9 @@
 @import "shadcn/tailwind.css";
 
 @theme inline {
-  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), var(--font-ui), ui-serif, serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -26,39 +27,43 @@
   --color-surface: var(--surface);
   --color-ink-muted: var(--ink-muted);
   --color-accent-soft: var(--accent-soft);
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
-  --radius-xl: 0;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 }
 
 @layer base {
   :root {
-    --font-grotesk: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-    --font-plex-mono: "IBM Plex Mono", ui-monospace, monospace;
-    --background: #ffffff;
-    --surface: #f7f7f5;
-    --foreground: #14161c;
-    --ink-muted: #5c5e66;
-    --accent-soft: #eef3fa;
+    --font-ui: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display-face: "Newsreader", ui-serif, Georgia, serif;
+    --font-mono-face: "IBM Plex Mono", ui-monospace, monospace;
+    --background: #fbfbfa;
+    --surface: #f3f2ef;
+    --foreground: #121214;
+    --ink-muted: #6e6e73;
+    --accent-soft: #eef4f9;
     --card: #ffffff;
-    --card-foreground: #14161c;
+    --card-foreground: #121214;
     --popover: #ffffff;
-    --popover-foreground: #14161c;
-    --primary: #1b4b8c;
+    --popover-foreground: #121214;
+    --primary: #0d3b66;
     --primary-foreground: #ffffff;
-    --secondary: #f7f7f5;
-    --secondary-foreground: #14161c;
-    --muted: #f7f7f5;
-    --muted-foreground: #5c5e66;
-    --accent: #f7f7f5;
-    --accent-foreground: #1b4b8c;
-    --destructive: #b3261e;
-    --border: #d8d9dc;
-    --input: #d8d9dc;
-    --ring: #1b4b8c;
-    --radius: 0;
-    --ease-premium: cubic-bezier(0.4, 0, 0.2, 1);
+    --secondary: #f3f2ef;
+    --secondary-foreground: #121214;
+    --muted: #f3f2ef;
+    --muted-foreground: #6e6e73;
+    --accent: #f3f2ef;
+    --accent-foreground: #0d3b66;
+    --destructive: #c41e1e;
+    --border: #e4e2dd;
+    --input: #e4e2dd;
+    --ring: #0d3b66;
+    --radius: 8px;
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-soft: 0 1px 2px rgba(18, 18, 20, 0.04), 0 4px 16px rgba(18, 18, 20, 0.03);
+    --shadow-elevated: 0 2px 4px rgba(18, 18, 20, 0.04), 0 12px 40px rgba(18, 18, 20, 0.06);
   }
 
   * {
@@ -69,6 +74,7 @@
     color-scheme: light;
     font-family: var(--font-sans);
     scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -77,6 +83,7 @@
     color: var(--foreground);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   code,
@@ -86,62 +93,95 @@
   }
 
   a {
-    transition: color 200ms var(--ease-premium);
+    transition: color 180ms var(--ease-standard);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
   }
 }
 
 [data-slot="button"] {
+  border-radius: var(--radius-md);
   transition:
-    background-color 200ms var(--ease-premium),
-    border-color 200ms var(--ease-premium),
-    color 200ms var(--ease-premium),
-    opacity 200ms var(--ease-premium);
+    background-color 200ms var(--ease-standard),
+    border-color 200ms var(--ease-standard),
+    color 200ms var(--ease-standard),
+    box-shadow 200ms var(--ease-standard),
+    transform 120ms var(--ease-standard);
+}
+
+[data-slot="button"]:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 [data-slot="input"],
 [data-slot="slider-thumb"] {
+  border-radius: var(--radius-md);
   transition:
-    border-color 200ms var(--ease-premium),
-    background-color 200ms var(--ease-premium);
+    border-color 200ms var(--ease-standard),
+    background-color 200ms var(--ease-standard),
+    box-shadow 200ms var(--ease-standard);
 }
 
-.panel {
+.text-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.panel,
+.card-premium {
   border: 1px solid var(--border);
   background: var(--card);
-  transition: border-color 200ms var(--ease-premium), background-color 200ms var(--ease-premium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 220ms var(--ease-standard),
+    box-shadow 220ms var(--ease-standard),
+    transform 220ms var(--ease-out-expo);
 }
 
 .panel-muted {
   border: 1px solid var(--border);
   background: var(--surface);
-  transition: border-color 200ms var(--ease-premium), background-color 200ms var(--ease-premium);
+  border-radius: var(--radius-lg);
 }
 
 .panel-elevated {
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   background: var(--card);
-  box-shadow: 0 1px 0 rgba(20, 22, 28, 0.04);
-  transition: border-color 200ms var(--ease-premium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
 }
 
 .panel-interactive {
   border: 1px solid var(--border);
   background: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
   transition:
-    border-color 200ms var(--ease-premium),
-    background-color 200ms var(--ease-premium),
-    transform 200ms var(--ease-premium);
+    border-color 220ms var(--ease-standard),
+    box-shadow 220ms var(--ease-out-expo),
+    transform 220ms var(--ease-out-expo);
 }
 
 .panel-interactive:hover {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
-  background: color-mix(in srgb, var(--accent-soft) 40%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
 }
 
-@keyframes ecdat-enter {
+.app-canvas {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(13, 59, 102, 0.04), transparent 55%),
+    var(--background);
+}
+
+@keyframes ecdat-fade-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -149,24 +189,52 @@
   }
 }
 
+@keyframes ecdat-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ecdat-loader-bar {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  50% {
+    transform: scaleX(0.65);
+    transform-origin: left;
+  }
+  100% {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
 .motion-enter {
-  animation: ecdat-enter 0.5s var(--ease-premium) both;
+  animation: ecdat-fade-up 0.65s var(--ease-out-expo) both;
 }
 
 .motion-enter-delay-1 {
-  animation-delay: 80ms;
+  animation-delay: 70ms;
 }
 
 .motion-enter-delay-2 {
-  animation-delay: 140ms;
+  animation-delay: 130ms;
 }
 
 .motion-enter-delay-3 {
-  animation-delay: 200ms;
+  animation-delay: 190ms;
 }
 
 .motion-enter-delay-4 {
-  animation-delay: 260ms;
+  animation-delay: 250ms;
+}
+
+.page-transition {
+  animation: ecdat-fade-up 0.5s var(--ease-out-expo) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -174,11 +242,20 @@
   .motion-enter-delay-1,
   .motion-enter-delay-2,
   .motion-enter-delay-3,
-  .motion-enter-delay-4 {
+  .motion-enter-delay-4,
+  .page-transition {
     animation: none;
   }
 
   html {
     scroll-behavior: auto;
+  }
+
+  [data-slot="button"]:active:not(:disabled) {
+    transform: none;
+  }
+
+  .panel-interactive:hover {
+    transform: none;
   }
 }

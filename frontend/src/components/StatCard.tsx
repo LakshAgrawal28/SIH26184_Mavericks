@@ -11,13 +11,13 @@ export default function StatCard({ label, value, dot = "default" }: StatCardProp
   const numeric = typeof value === "number";
 
   return (
-    <div className="panel-interactive px-5 py-4">
-      <p className="text-xs font-medium text-ink-muted">{label}</p>
+    <div className="panel-interactive px-6 py-5">
+      <p className="text-xs font-medium tracking-wide text-ink-muted">{label}</p>
       <p
         className={cn(
-          "mt-2 text-3xl font-semibold tabular-nums tracking-tight text-foreground",
-          dot === "critical" && "text-[#B3261E]",
-          dot === "high" && "text-[#B8781F]"
+          "mt-3 text-[2rem] font-semibold tabular-nums leading-none tracking-tight text-foreground",
+          dot === "critical" && "text-destructive",
+          dot === "high" && "text-[#a66b12]"
         )}
       >
         {numeric ? <AnimatedCount value={value} /> : value}

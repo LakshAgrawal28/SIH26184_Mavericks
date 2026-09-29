@@ -15,7 +15,7 @@ export default function RiskBadge({
   return (
     <span
       className={cn(
-        "inline-flex border bg-background px-2 py-0.5 font-mono text-xs font-medium",
+        "inline-flex rounded-md border bg-card px-2 py-0.5 font-mono text-xs font-medium",
         text,
         border
       )}

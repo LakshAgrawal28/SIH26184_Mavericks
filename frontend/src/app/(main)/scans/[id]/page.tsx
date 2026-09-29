@@ -19,12 +19,12 @@ import NarrativeMarkdown from "@/components/NarrativeMarkdown";
 import { cn } from "@/lib/utils";
 
 function quantumStyle(kind?: string) {
-  if (kind === "shor") return "bg-red-50 text-red-700";
-  if (kind === "broken_classical") return "bg-orange-50 text-orange-800";
-  if (kind === "inspect") return "bg-violet-50 text-violet-800";
-  if (kind === "grover") return "bg-sky-50 text-sky-800";
-  if (kind === "none") return "bg-emerald-50 text-emerald-700";
-  return "bg-zinc-100 text-zinc-600";
+  if (kind === "shor") return "bg-red-50/90 text-red-800";
+  if (kind === "broken_classical") return "bg-amber-50 text-amber-900";
+  if (kind === "inspect") return "bg-slate-100 text-slate-700";
+  if (kind === "grover") return "bg-sky-50 text-sky-900";
+  if (kind === "none") return "bg-emerald-50 text-emerald-800";
+  return "bg-surface text-ink-muted";
 }
 
 function quantumLabel(kind?: string) {

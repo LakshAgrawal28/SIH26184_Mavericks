@@ -55,11 +55,10 @@ export default function DashboardPage() {
 
   return (
     <>
-      <section className="mb-6 border-b border-border pb-6">
-        <CipherScramble
-          className="font-mono text-sm text-foreground md:text-base"
-        />
-        <p className="mt-2 max-w-[65ch] text-sm text-ink-muted">
+      <section className="mb-10">
+        <p className="text-xs font-semibold tracking-[0.1em] text-primary uppercase">Console</p>
+        <CipherScramble className="mt-3 font-mono text-sm text-foreground md:text-base" />
+        <p className="mt-3 max-w-[68ch] text-[15px] leading-relaxed text-ink-muted">
           Live posture from completed discovery scans — Shor vs Grover vs hygiene, HSM/cloud, and quantum risk bands.
         </p>
       </section>

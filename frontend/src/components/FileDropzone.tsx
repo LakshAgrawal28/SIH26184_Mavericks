@@ -36,10 +36,10 @@ export default function FileDropzone({
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
       className={cn(
-        "flex cursor-pointer flex-col items-center justify-center border border-dashed px-6 py-10 transition-colors duration-120",
+        "flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-12 transition-all duration-200",
         dragOver
-          ? "border-[#1B4B8C] bg-surface"
-          : "border-border bg-background hover:border-foreground/30 hover:bg-surface"
+          ? "border-primary/50 bg-accent-soft shadow-sm"
+          : "border-border bg-card hover:border-primary/25 hover:bg-surface hover:shadow-sm"
       )}
     >
       <input

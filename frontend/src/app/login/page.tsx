@@ -114,13 +114,13 @@ export default function LoginPage() {
         </div>
 
         <div className="panel-elevated motion-enter motion-enter-delay-1 p-8">
-          <h2 className="text-lg font-semibold text-foreground">Operator sign-in</h2>
+          <h2 className="text-display text-xl text-foreground">Operator sign-in</h2>
           <p className="mt-1 text-sm text-ink-muted">Console access for your deployment</p>
 
           <div className="mt-4 flex items-center justify-between gap-2 font-mono text-xs">
             <div className="flex min-w-0 items-center gap-2">
               <span
-                className={`h-2 w-2 shrink-0 border ${
+                className={`h-2 w-2 shrink-0 rounded-full ${
                   apiStatus === "online"
                     ? "border-[#1B7A3D] bg-[#1B7A3D]"
                     : apiStatus === "offline"
