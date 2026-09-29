@@ -18,12 +18,18 @@ export function MoscaSection() {
   const root = useRef<HTMLElement>(null);
 
   useGSAP(root, (gsap) => {
+    gsap.set("[data-z-line]", { scaleY: 0, transformOrigin: "50% 0%" });
+    gsap.set("[data-y], [data-x]", { scaleX: 0, transformOrigin: "0% 50%", transformBox: "fill-box" });
+    gsap.set("[data-label], [data-y-text], [data-x-text], [data-exposure], [data-verdict]", {
+      opacity: 0,
+    });
+
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: "[data-mosca-pin]",
         start: "top top",
         end: "+=1100",
-        scrub: 0.7,
+        scrub: 0.55,
         pin: true,
         anticipatePin: 1,
       },

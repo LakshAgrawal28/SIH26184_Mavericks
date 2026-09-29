@@ -9,8 +9,16 @@ export function BlindSpotSection() {
   const root = useRef<HTMLElement>(null);
 
   useGSAP(root, (gsap) => {
+    gsap.set("[data-bar]", { scaleX: 0, transformOrigin: "left center" });
+    gsap.set("[data-beam]", { xPercent: -120, opacity: 0 });
+    gsap.set("[data-wire]", { scaleY: 0, transformOrigin: "top center" });
+    gsap.set("[data-core]", { opacity: 0.35, scale: 0.94 });
+    gsap.utils.toArray<HTMLElement>("[data-pct]").forEach((el) => {
+      el.textContent = "0%";
+    });
+
     const tl = gsap.timeline({
-      scrollTrigger: { trigger: "[data-scan-grid]", start: "top 75%", end: "bottom 45%", scrub: 0.6 },
+      scrollTrigger: { trigger: "[data-scan-grid]", start: "top 82%", end: "bottom 38%", scrub: 0.45 },
     });
     gsap.utils.toArray<HTMLElement>("[data-scan-card]").forEach((card, i) => {
       const target = Number(card.dataset.progress);
@@ -19,7 +27,7 @@ export function BlindSpotSection() {
       const pct = card.querySelector<HTMLElement>("[data-pct]");
       const counter = { v: 0 };
       const at = i * 0.18;
-      tl.fromTo(beam, { xPercent: -100, opacity: 0 }, { xPercent: 420, opacity: 1, duration: 1, ease: "none" }, at)
+      tl.fromTo(beam, { xPercent: -120, opacity: 0 }, { xPercent: 480, opacity: 1, duration: 1, ease: "none" }, at)
         .fromTo(bar, { scaleX: 0 }, { scaleX: target / 100, duration: 1, ease: "none" }, at)
         .to(
           counter,
@@ -65,7 +73,7 @@ export function BlindSpotSection() {
                 <GlowCard className="overflow-hidden p-5">
                   <div
                     data-beam
-                    className="pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-transparent via-[rgba(56,189,248,0.18)] to-transparent"
+                    className="pointer-events-none absolute inset-y-0 left-0 w-[38%] bg-gradient-to-r from-transparent via-[rgba(56,189,248,0.35)] to-transparent shadow-[0_0_24px_rgba(56,189,248,0.25)]"
                     aria-hidden
                   />
                   <p className="intel-label text-[10px]">{s.label}</p>

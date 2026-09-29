@@ -136,8 +136,8 @@ export function HeroNetwork({ className, variant = "hero", density = 46 }: HeroN
     };
 
     const project = (n: NetNode) => ({
-      x: n.x * width + parX * 38 * n.depth,
-      y: n.y * height + parY * 26 * n.depth,
+      x: n.x * width + parX * 54 * n.depth,
+      y: n.y * height + parY * 38 * n.depth,
     });
 
     const draw = (elapsed: number) => {
@@ -219,8 +219,8 @@ export function HeroNetwork({ className, variant = "hero", density = 46 }: HeroN
     const tick = (now: number) => {
       if (!start) start = now;
       const elapsed = now - start;
-      parX += (pointerX - parX) * 0.05;
-      parY += (pointerY - parY) * 0.05;
+      parX += (pointerX - parX) * 0.08;
+      parY += (pointerY - parY) * 0.08;
 
       if (elapsed / timeScale > flowStart && packets.length < 14 && Math.random() < 0.08) {
         packets.push({

@@ -22,6 +22,15 @@ export function useGSAP(scope: RefObject<HTMLElement | null>, setup: (g: typeof 
       registered = true;
     }
     const ctx = gsap.context(() => setupRef.current(gsap), scope.current);
-    return () => ctx.revert();
+    const refresh = () => ScrollTrigger.refresh();
+    refresh();
+    window.addEventListener("load", refresh);
+    const ro = new ResizeObserver(() => refresh());
+    ro.observe(scope.current);
+    return () => {
+      window.removeEventListener("load", refresh);
+      ro.disconnect();
+      ctx.revert();
+    };
   }, [scope]);
 }

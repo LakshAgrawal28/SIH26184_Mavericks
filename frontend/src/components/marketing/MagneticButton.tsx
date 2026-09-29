@@ -11,7 +11,7 @@ type MagneticButtonProps = {
 };
 
 /** Subtle magnetic pull on hover — inspired by 21st magnetic button patterns. */
-export function MagneticButton({ children, className, strength = 0.28 }: MagneticButtonProps) {
+export function MagneticButton({ children, className, strength = 0.42 }: MagneticButtonProps) {
   const ref = useRef<HTMLSpanElement>(null);
 
   function onMove(e: React.PointerEvent<HTMLSpanElement>) {
@@ -31,7 +31,8 @@ export function MagneticButton({ children, className, strength = 0.28 }: Magneti
   return (
     <span
       ref={ref}
-      className={cn("ecdat-magnetic inline-flex transition-transform duration-200 ease-out", className)}
+      data-magnetic
+      className={cn("ecdat-magnetic inline-flex transition-transform duration-150 ease-out", className)}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
     >

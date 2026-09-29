@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { LandingScrollProgress } from "@/components/landing/LandingScrollProgress";
 import { MarketingCursorGlow } from "@/components/marketing/MarketingCursorGlow";
 import { Button } from "@/components/ui/button";
 import { getToken } from "@/lib/api";
@@ -48,6 +49,12 @@ export function SiteHeader({ className }: { className?: string }) {
               <span className="text-primary/70">{s.n}</span> {s.label}
             </a>
           ))}
+          <Link
+            href="/trust"
+            className="font-mono text-[11px] tracking-[0.08em] text-ink-muted uppercase transition-colors hover:text-primary"
+          >
+            Trust &amp; accuracy
+          </Link>
           {signedIn ? (
             <Link href="/dashboard" className="font-mono text-[11px] tracking-[0.08em] text-primary uppercase">
               Dashboard
@@ -78,6 +85,9 @@ export function SiteFooter() {
           Cryptographic Discovery &amp; Analysis Tool
         </p>
         <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-[0.08em] uppercase">
+          <Link href="/trust" className="text-ink-muted transition-colors hover:text-primary">
+            Trust &amp; accuracy
+          </Link>
           <Link href="/login" className="text-ink-muted transition-colors hover:text-primary">
             Operator sign-in
           </Link>
@@ -94,6 +104,7 @@ export function MarketingLayout({ children, className }: { children: ReactNode; 
   return (
     <div className={cn("theme-intel ecdat-marketing-root flex min-h-screen flex-col", className)}>
       <MarketingCursorGlow />
+      <LandingScrollProgress />
       <SiteHeader />
       <div className="flex-1">{children}</div>
       <SiteFooter />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BlindSpotSection } from "@/components/landing/BlindSpotSection";
 import { CbomSection } from "@/components/landing/CbomSection";
 import { CommandCtaSection } from "@/components/landing/CommandCtaSection";
+import { StandardsMarquee } from "@/components/landing/StandardsMarquee";
 import { DiscoverSection } from "@/components/landing/DiscoverSection";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { IntelligenceGraphSection } from "@/components/landing/IntelligenceGraphSection";
@@ -25,6 +26,7 @@ export default function LandingPage() {
   return (
     <MarketingLayout>
       <HeroSection />
+      <StandardsMarquee />
       <BlindSpotSection />
       <DiscoverSection />
       <CbomSection />

@@ -17,7 +17,7 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function DiscoverSection() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-20% 0px" });
+  const inView = useInView(ref, { once: true, margin: "-10% 0px" });
   const reduced = useReducedMotion();
   // One tick per stage per artefact; artefact i is at stage (tick - i * STAGES.length).
   const [tick, setTick] = useState(0);

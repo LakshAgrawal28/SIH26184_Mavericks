@@ -477,16 +477,40 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 280px;
-  height: 280px;
+  width: 340px;
+  height: 340px;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(13, 59, 102, 0.22) 0%,
-    rgba(13, 59, 102, 0.08) 35%,
-    transparent 68%
+    rgba(56, 189, 248, 0.2) 0%,
+    rgba(13, 59, 102, 0.12) 32%,
+    transparent 70%
   );
-  mix-blend-mode: multiply;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.ecdat-cursor-spot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(186, 230, 253, 0.35) 0%, transparent 72%);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.ecdat-cursor-trail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
   will-change: transform;
 }
 
@@ -497,9 +521,72 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
-  box-shadow: 0 0 24px color-mix(in srgb, var(--primary) 25%, transparent);
+  border: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
+  box-shadow:
+    0 0 28px color-mix(in srgb, var(--primary) 35%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--primary) 15%, transparent);
   will-change: transform;
+}
+
+.ecdat-scroll-progress {
+  background: rgba(148, 170, 200, 0.08);
+}
+
+.ecdat-scroll-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: top center;
+  background: linear-gradient(180deg, var(--intel-cyan), var(--intel-blue));
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+}
+
+.ecdat-pipeline-dot-active {
+  color: var(--primary);
+  transform: scale(1.35);
+}
+
+.ecdat-pipeline-dot-active span:last-child {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+@keyframes ecdat-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ecdat-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: ecdat-marquee 42s linear infinite;
+}
+
+.ecdat-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2.5rem;
+  padding-right: 2.5rem;
+}
+
+.ecdat-marquee-item {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink-muted) 85%, var(--primary));
+  white-space: nowrap;
+}
+
+.ecdat-marquee-item::before {
+  content: "◆";
+  margin-right: 0.75rem;
+  color: color-mix(in srgb, var(--primary) 55%, transparent);
+  font-size: 8px;
 }
 
 .ecdat-glass-header {
@@ -757,7 +844,7 @@
   height: 9%;
   background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.22), transparent);
   border-bottom: 1px solid rgba(125, 211, 252, 0.55);
-  animation: intel-scan-sweep 3.6s linear infinite;
+  animation: intel-scan-sweep 2.4s linear infinite;
   pointer-events: none;
 }
 
@@ -879,8 +966,14 @@
     cursor: auto;
   }
 
-  .ecdat-cursor-layer {
+  .ecdat-cursor-layer,
+  .ecdat-scroll-progress,
+  .ecdat-pipeline-nav {
     display: none;
+  }
+
+  .ecdat-marquee-track {
+    animation: none;
   }
 
   .ecdat-glass-spotlight::before,
