@@ -34,6 +34,11 @@ export default function CipherScramble({ className, durationMs = 2200 }: CipherS
   const [done, setDone] = useState(false);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setText(TARGET);
+      setDone(true);
+      return;
+    }
     const start = performance.now();
     let frame = 0;
     const tick = (now: number) => {

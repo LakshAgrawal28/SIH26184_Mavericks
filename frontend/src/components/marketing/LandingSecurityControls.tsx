@@ -69,6 +69,7 @@ export default function LandingSecurityControls() {
                   <button
                     key={item.id}
                     type="button"
+                    aria-expanded={isActive}
                     onClick={() => setActive(item.id)}
                     className={cn(
                       "block w-full border-b border-border/70 px-6 py-5 text-left transition-colors last:border-b-0",

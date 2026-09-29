@@ -8,10 +8,10 @@ import HeroRadialGlow from "@/components/marketing/HeroRadialGlow";
 import LandingAnimatedProof from "@/components/marketing/LandingAnimatedProof";
 import LandingHeroConsole from "@/components/marketing/LandingHeroConsole";
 import LandingSecurityControls from "@/components/marketing/LandingSecurityControls";
+import { ScrollReveal } from "@/components/marketing/ScrollReveal";
 import { MarketingLayout } from "@/components/marketing/SiteChrome";
 import { Button } from "@/components/ui/button";
 import { getToken } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 const TRUST = [
   "Smart India Hackathon 2026",
@@ -34,6 +34,12 @@ const PILLARS = [
     title: "Mosca you can defend",
     body: "Interactive X + Y vs Z timelines tie quantum risk to migration urgency, aligned with NTRO's post-quantum readiness mandate.",
   },
+];
+
+const HERO_STATS = [
+  { value: "613", label: "Artefacts per demo scan" },
+  { value: "100%", label: "Corpus recall target" },
+  { value: "5", label: "Steps · upload to CBOM" },
 ];
 
 const PIPELINE = [
@@ -65,6 +71,7 @@ export default function LandingPage() {
           }}
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_80%_70%_at_50%_-20%,rgba(13,59,102,0.12),transparent)]" />
+        <div className="ecdat-hero-grain" aria-hidden />
 
         <div className="relative mx-auto max-w-[1180px] px-6 pb-16 pt-10 lg:pb-24 lg:pt-14">
           <div className="flex flex-wrap items-center gap-2 motion-enter">
@@ -83,7 +90,7 @@ export default function LandingPage() {
               <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
                 Team Mavericks · Blockchain &amp; Cybersecurity
               </p>
-              <h1 className="text-display mt-4 text-[2.35rem] leading-[1.08] text-foreground sm:text-5xl lg:text-[3.25rem]">
+              <h1 className="text-display mt-4 text-[2.35rem] leading-[1.06] tracking-[-0.03em] text-foreground sm:text-5xl lg:text-[3.35rem]">
                 The security X-ray for enterprise cryptography
               </h1>
               <CipherScramble className="mt-6 font-mono text-sm text-foreground/85 sm:text-base" />
@@ -106,6 +113,14 @@ export default function LandingPage() {
                 Demo login: <span className="font-mono text-foreground">admin@example.com</span> /{" "}
                 <span className="font-mono text-foreground">admin123</span>
               </p>
+              <dl className="mt-10 grid grid-cols-3 gap-4 border-t border-border/70 pt-8">
+                {HERO_STATS.map((s) => (
+                  <div key={s.label}>
+                    <dt className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">{s.label}</dt>
+                    <dd className="text-display mt-1 text-2xl text-primary sm:text-[1.65rem]">{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
 
             <div className="motion-enter motion-enter-delay-2 lg:translate-y-2">
@@ -118,26 +133,21 @@ export default function LandingPage() {
       {/* Impact */}
       <section id="impact" className="border-b border-border/70 bg-surface/50">
         <div className="mx-auto max-w-[1180px] px-6 py-20">
-          <div className="max-w-2xl">
+          <ScrollReveal className="max-w-2xl">
             <h2 className="text-display text-3xl text-foreground">Built for Problem Statement 26164</h2>
             <p className="mt-4 text-[17px] leading-relaxed text-ink-muted">
               Judges should see a product, not a slide deck. ECDAT is a full-stack platform you can run on-prem
               where classified workloads live — with the same UI we ship on Vercel and Render.
             </p>
-          </div>
+          </ScrollReveal>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {PILLARS.map((p, i) => (
-              <article
-                key={p.title}
-                className={cn(
-                  "panel-interactive p-7 motion-enter",
-                  i === 1 && "motion-enter-delay-1",
-                  i === 2 && "motion-enter-delay-2"
-                )}
-              >
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">{p.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-ink-muted">{p.body}</p>
-              </article>
+              <ScrollReveal key={p.title} delayMs={i * 70}>
+                <article className="panel-interactive h-full p-7">
+                  <h3 className="text-lg font-semibold tracking-tight text-foreground">{p.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-ink-muted">{p.body}</p>
+                </article>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -146,24 +156,21 @@ export default function LandingPage() {
       {/* Pipeline */}
       <section id="workflow" className="border-b border-border/70">
         <div className="mx-auto max-w-[1180px] px-6 py-20">
-          <h2 className="text-display text-3xl text-foreground">Five-step closed loop</h2>
-          <p className="mt-3 max-w-xl text-[17px] text-ink-muted">
-            Every step in the marketing story is the same path in the console — upload through export.
-          </p>
+          <ScrollReveal>
+            <h2 className="text-display text-3xl text-foreground">Five-step closed loop</h2>
+            <p className="mt-3 max-w-xl text-[17px] text-ink-muted">
+              Every step in the marketing story is the same path in the console — upload through export.
+            </p>
+          </ScrollReveal>
           <ol className="mt-14 grid gap-4 lg:grid-cols-5">
             {PIPELINE.map((step, i) => (
-              <li
-                key={step.n}
-                className={cn(
-                  "relative panel p-5 motion-enter",
-                  i > 0 && "motion-enter-delay-1",
-                  i > 2 && "motion-enter-delay-2"
-                )}
-              >
-                <p className="font-mono text-xs font-semibold text-primary">{step.n}</p>
-                <h3 className="mt-2 text-base font-semibold text-foreground">{step.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-ink-muted">{step.detail}</p>
-              </li>
+              <ScrollReveal key={step.n} delayMs={i * 55} className="h-full">
+                <li className="relative panel h-full p-5">
+                  <p className="font-mono text-xs font-semibold text-primary">{step.n}</p>
+                  <h3 className="mt-2 text-base font-semibold text-foreground">{step.title}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-ink-muted">{step.detail}</p>
+                </li>
+              </ScrollReveal>
             ))}
           </ol>
         </div>
@@ -175,17 +182,21 @@ export default function LandingPage() {
       <section id="capabilities" className="bg-card">
         <div className="mx-auto max-w-[1180px] px-6 py-20">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:items-center">
-            <div>
-              <h2 className="text-display text-3xl text-foreground">Proof of quality</h2>
-              <p className="mt-4 text-[17px] leading-relaxed text-ink-muted">
-                Corpus accuracy tests, schema-validated CBOM export, and grounded Groq narration that cannot
-                invent findings — deterministic tables remain authoritative.
-              </p>
-              <Button asChild className="mt-8" variant="outline">
-                <Link href="/login">Run corpus demo scan</Link>
-              </Button>
-            </div>
-            <LandingAnimatedProof />
+            <ScrollReveal>
+              <div>
+                <h2 className="text-display text-3xl text-foreground">Proof of quality</h2>
+                <p className="mt-4 text-[17px] leading-relaxed text-ink-muted">
+                  Corpus accuracy tests, schema-validated CBOM export, and grounded Groq narration that cannot
+                  invent findings — deterministic tables remain authoritative.
+                </p>
+                <Button asChild className="mt-8" variant="outline">
+                  <Link href="/login">Run corpus demo scan</Link>
+                </Button>
+              </div>
+            </ScrollReveal>
+            <ScrollReveal delayMs={90}>
+              <LandingAnimatedProof />
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -193,13 +204,16 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-[1180px] flex-col items-start justify-between gap-8 px-6 py-16 sm:flex-row sm:items-center">
-          <div className="max-w-xl">
+          <ScrollReveal className="max-w-xl">
+          <div>
             <h2 className="text-display text-2xl sm:text-3xl">Ready for the 5-minute judge walkthrough?</h2>
             <p className="mt-3 text-sm leading-relaxed text-primary-foreground/85">
               Sign in, upload <span className="font-mono">mixed-enterprise.zip</span>, open Mosca, export CBOM,
               ask the assistant a question — all without leaving the product.
             </p>
           </div>
+          </ScrollReveal>
+          <ScrollReveal delayMs={80}>
           <Button
             asChild
             size="lg"
@@ -207,6 +221,7 @@ export default function LandingPage() {
           >
             <Link href="/login">Open ECDAT console</Link>
           </Button>
+          </ScrollReveal>
         </div>
       </section>
     </MarketingLayout>

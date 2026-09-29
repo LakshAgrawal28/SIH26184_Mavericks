@@ -11,20 +11,44 @@ const RISK = [
   { label: "PQC roadmap", value: 412, pct: 44, tone: "bg-[#1a6b42]" },
 ];
 
+const INVENTORY = [
+  { path: "src/tls/nginx.conf", algo: "RSA-2048", band: "Critical" },
+  { path: "certs/wildcard.pem", algo: "ECDSA P-256", band: "High" },
+  { path: "lib/crypto/hybrid.py", algo: "AES-256-GCM", band: "Low" },
+];
+
+const PQC_ROWS = [
+  { from: "TLS 1.2 RS256", to: "ML-DSA-65 + ML-KEM-768" },
+  { from: "JWT signing", to: "ML-DSA-44 hybrid" },
+  { from: "Data at rest", to: "AES-256-GCM (retain)" },
+];
+
+const TABS = ["Overview", "Inventory", "Mosca", "PQC"] as const;
+
 export default function LandingHeroConsole() {
   const [activeTab, setActiveTab] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    const id = window.setInterval(() => setActiveTab((t) => (t + 1) % 4), 3200);
-    return () => window.clearInterval(id);
+    setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }, []);
 
+  useEffect(() => {
+    if (reduceMotion) return;
+    const id = window.setInterval(() => setActiveTab((t) => (t + 1) % TABS.length), 4200);
+    return () => window.clearInterval(id);
+  }, [reduceMotion]);
+
   return (
-    <div className="panel-elevated overflow-hidden shadow-[0_24px_80px_-24px_rgba(13,59,102,0.18)]">
+    <div
+      className="panel-elevated overflow-hidden shadow-[0_24px_80px_-24px_rgba(13,59,102,0.18)]"
+      role="region"
+      aria-label="Product console preview"
+    >
       <div className="flex items-center gap-2 border-b border-border/80 bg-[#f6f5f3] px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#e8a0a0]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#e8c97a]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#8bc49a]" />
+        <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
+        <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
         <p className="ml-2 flex-1 truncate text-center font-mono text-[10px] text-ink-muted">
           ecdat-zeta.vercel.app/scans/demo-scan
         </p>
@@ -57,11 +81,13 @@ export default function LandingHeroConsole() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-border/80 bg-surface/40 px-3 pt-2">
-        {["Overview", "Inventory", "Mosca", "PQC"].map((tab, i) => (
+      <div className="flex gap-1 border-b border-border/80 bg-surface/40 px-3 pt-2" role="tablist" aria-label="Scan views">
+        {TABS.map((tab, i) => (
           <button
             key={tab}
             type="button"
+            role="tab"
+            aria-selected={activeTab === i}
             onClick={() => setActiveTab(i)}
             className={cn(
               "rounded-t-md px-3 py-1.5 text-[11px] font-medium transition-colors",
@@ -75,29 +101,72 @@ export default function LandingHeroConsole() {
         ))}
       </div>
 
-      <div className="space-y-3 bg-card px-5 py-4">
-        {RISK.map((row, i) => (
-          <div
-            key={row.label}
-            className={cn(
-              "transition-opacity duration-500",
-              activeTab === 0 || activeTab === 1 ? "opacity-100" : "opacity-40"
-            )}
-            style={{ transitionDelay: `${i * 40}ms` }}
-          >
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-ink-muted">{row.label}</span>
-              <span className="font-mono font-medium tabular-nums text-foreground">{row.value}</span>
-            </div>
-            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-border">
-              <div
-                className={cn("h-full rounded-full transition-[width] duration-700 ease-out", row.tone)}
-                style={{ width: `${row.pct}%` }}
-              />
-            </div>
+      <div className="min-h-[188px] bg-card px-5 py-4" role="tabpanel">
+        {activeTab === 0 && (
+          <div className="space-y-3 motion-enter">
+            {RISK.map((row) => (
+              <div key={row.label}>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-ink-muted">{row.label}</span>
+                  <span className="font-mono font-medium tabular-nums text-foreground">{row.value}</span>
+                </div>
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-border">
+                  <div className={cn("h-full rounded-full", row.tone)} style={{ width: `${row.pct}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-        <p className="border-t border-border/60 pt-3 font-mono text-[10px] leading-relaxed text-ink-muted">
+        )}
+
+        {activeTab === 1 && (
+          <ul className="space-y-2 motion-enter">
+            {INVENTORY.map((row) => (
+              <li
+                key={row.path}
+                className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-surface/40 px-3 py-2 text-[11px]"
+              >
+                <span className="truncate font-mono text-foreground">{row.path}</span>
+                <span className="shrink-0 text-ink-muted">{row.algo}</span>
+                <span className="shrink-0 font-medium text-primary">{row.band}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {activeTab === 2 && (
+          <div className="motion-enter space-y-4">
+            <p className="text-[11px] text-ink-muted">Mosca inequality · years of safety</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                { k: "X", v: "8", sub: "migration" },
+                { k: "Y", v: "12", sub: "shelf life" },
+                { k: "Z", v: "6", sub: "Q-day est." },
+              ].map((m) => (
+                <div key={m.k} className="rounded-lg border border-border/70 bg-surface/50 px-2 py-3">
+                  <p className="font-mono text-xs font-semibold text-primary">{m.k}</p>
+                  <p className="mt-1 font-mono text-xl font-semibold tabular-nums text-foreground">{m.v}</p>
+                  <p className="mt-0.5 text-[10px] text-ink-muted">{m.sub}</p>
+                </div>
+              ))}
+            </div>
+            <p className="rounded-md border border-primary/20 bg-accent-soft px-3 py-2 text-[11px] leading-relaxed text-foreground">
+              X + Y &lt; Z → <span className="font-semibold text-primary">Act now</span> — migrate before data expiry.
+            </p>
+          </div>
+        )}
+
+        {activeTab === 3 && (
+          <ul className="space-y-2 motion-enter">
+            {PQC_ROWS.map((row) => (
+              <li key={row.from} className="rounded-md border border-border/60 px-3 py-2.5 text-[11px]">
+                <p className="font-medium text-foreground">{row.from}</p>
+                <p className="mt-1 font-mono text-primary">→ {row.to}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="mt-4 border-t border-border/60 pt-3 font-mono text-[10px] leading-relaxed text-ink-muted">
           Evidence: src/tls/nginx.conf:14 · RS256 · hybrid → ML-DSA-65
         </p>
       </div>
