@@ -4,6 +4,11 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CipherScramble from "@/components/CipherScramble";
+import { BorderBeamCard } from "@/components/marketing/BorderBeamCard";
+import { MagneticButton } from "@/components/marketing/MagneticButton";
+import { MeshGradientBackground } from "@/components/marketing/MeshGradientBackground";
+import { ShimmerCta } from "@/components/marketing/ShimmerCta";
+import { StaggeredTextReveal } from "@/components/marketing/StaggeredTextReveal";
 import { MarketingLayout } from "@/components/marketing/SiteChrome";
 import { API_URL, fetchWithTimeout, waitForApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -17,6 +22,12 @@ const DEMO_ACCOUNT = {
   password: "admin123",
   label: "Demo operator",
 };
+
+const HIGHLIGHTS = [
+  "Upload zip archives or bundled corpus demos",
+  "Evidence-backed artefact inventory",
+  "CycloneDX 1.6 export validation",
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -107,124 +118,163 @@ export default function LoginPage() {
         : "unreachable — click Retry or wait for cold start";
 
   return (
-    <MarketingLayout>
-      <div className="mx-auto grid max-w-[1120px] gap-12 px-6 py-12 lg:grid-cols-[1fr_400px] lg:items-start lg:py-16">
-        <div className="motion-enter max-w-lg">
-          <Link href="/" className="text-xs text-ink-muted transition-colors hover:text-primary">
-            ← Back to overview
-          </Link>
-          <CipherScramble className="mt-8 font-mono text-base text-foreground md:text-lg" />
-          <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-            Sign in to run discovery scans, review Mosca timelines, export CBOMs, and use the
-            grounded AI assistant — all tied to deterministic scan data.
-          </p>
-          <ul className="mt-6 space-y-2 border-l border-border pl-4 text-sm text-ink-muted">
-            <li>Upload zip archives or bundled corpus demos</li>
-            <li>Evidence-backed artefact inventory</li>
-            <li>CycloneDX 1.6 export validation</li>
-          </ul>
-        </div>
+    <MarketingLayout className="relative">
+      <section className="relative min-h-[calc(100vh-60px)] overflow-hidden border-b border-border/60">
+        <MeshGradientBackground />
+        <div className="ecdat-hero-grain" aria-hidden />
 
-        <div className="panel-elevated motion-enter motion-enter-delay-1 p-8">
-          <h2 className="text-display text-xl text-foreground">Operator sign-in</h2>
-          <p className="mt-1 text-sm text-ink-muted">Console access for your deployment</p>
-
-          <div className="mt-4 flex items-center justify-between gap-2 font-mono text-xs">
-            <div className="flex min-w-0 items-center gap-2">
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${
-                  apiStatus === "online"
-                    ? "border-[#1B7A3D] bg-[#1B7A3D]"
-                    : apiStatus === "offline"
-                      ? "border-[#B3261E] bg-[#B3261E]"
-                      : "border-[#B8781F] bg-[#B8781F]"
-                }`}
-              />
-              <span className="truncate text-ink-muted">API {statusMessage}</span>
-            </div>
-            {apiStatus !== "online" && (
-              <button
-                type="button"
-                onClick={() => void checkApi()}
-                disabled={apiStatus === "checking"}
-                className="shrink-0 font-medium text-primary hover:underline disabled:opacity-50"
-              >
-                Retry
-              </button>
-            )}
-          </div>
-
-          {apiStatus === "checking" && wakeAttempt > 0 && (
-            <p className="mt-2 text-xs text-[#B8781F]">
-              Free-tier Render spins down after idle. First request can take up to 60 seconds.
-            </p>
-          )}
-
-          <div className="mt-5 rounded-lg border border-border/80 bg-surface/80 px-4 py-3.5">
-            <p className="text-xs font-medium text-foreground">{DEMO_ACCOUNT.label}</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-              For local and demo deployments when the default admin is enabled.
-            </p>
-            <dl className="mt-3 space-y-1.5 font-mono text-[11px] text-ink-muted">
-              <div className="flex justify-between gap-3">
-                <dt>Email</dt>
-                <dd className="text-foreground">{DEMO_ACCOUNT.email}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt>Password</dt>
-                <dd className="text-foreground">{DEMO_ACCOUNT.password}</dd>
-              </div>
-            </dl>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={applyDemoAccount}
-              disabled={loading}
+        <div className="relative mx-auto grid max-w-[1180px] gap-12 px-6 py-12 lg:grid-cols-[1.05fr_420px] lg:items-center lg:gap-16 lg:py-20">
+          <div className="max-w-xl">
+            <Link
+              href="/"
+              className="ecdat-trust-pill inline-block text-xs text-ink-muted transition-colors hover:text-primary"
+              style={{ animationDelay: "20ms" }}
             >
-              Fill demo credentials
-            </Button>
+              ← Back to overview
+            </Link>
+
+            <p
+              className="ecdat-trust-pill mt-10 text-xs font-semibold tracking-[0.14em] text-primary uppercase"
+              style={{ animationDelay: "90ms" }}
+            >
+              Smart India Hackathon 2026 · PS 26164
+            </p>
+
+            <StaggeredTextReveal
+              className="mt-4 text-[2rem] leading-[1.08] tracking-[-0.03em] text-foreground sm:text-[2.35rem]"
+              lines={["Operator console", "for ECDAT"]}
+            />
+
+            <CipherScramble className="motion-enter motion-enter-delay-2 mt-6 font-mono text-sm text-foreground/90 sm:text-base" />
+
+            <p className="motion-enter motion-enter-delay-3 mt-5 text-sm leading-relaxed text-ink-muted sm:text-[15px]">
+              Sign in to run discovery scans, review Mosca timelines, export CBOMs, and use the grounded AI
+              assistant — all tied to deterministic scan data.
+            </p>
+
+            <ul className="mt-8 space-y-3">
+              {HIGHLIGHTS.map((item, i) => (
+                <li
+                  key={item}
+                  className="ecdat-trust-pill flex items-start gap-3 text-sm text-ink-muted"
+                  style={{ animationDelay: `${200 + i * 70}ms` }}
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                required
-                autoComplete="email"
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                required
-                autoComplete="current-password"
-                className="mt-1.5"
-              />
-            </div>
-            {error && <p className="text-sm text-[#B3261E]">{error}</p>}
-            <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
-          </form>
+          <div className="motion-enter motion-enter-delay-2 lg:justify-self-end">
+            <BorderBeamCard innerClassName="p-8">
+              <h2 className="text-display text-xl text-foreground">Operator sign-in</h2>
+              <p className="mt-1 text-sm text-ink-muted">Console access for your deployment</p>
 
-          <p className="mt-5 text-center text-sm text-ink-muted">
-            New to ECDAT?{" "}
-            <Link href="/signup" className="font-medium text-primary hover:underline">Create an account</Link>
-          </p>
-          <p className="mt-4 font-mono text-[11px] text-ink-muted">Backend: {API_URL}</p>
+              <div className="mt-4 flex items-center justify-between gap-2 font-mono text-xs">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      apiStatus === "online"
+                        ? "border-[#1B7A3D] bg-[#1B7A3D]"
+                        : apiStatus === "offline"
+                          ? "border-[#B3261E] bg-[#B3261E]"
+                          : "border-[#B8781F] bg-[#B8781F] animate-pulse"
+                    }`}
+                  />
+                  <span className="truncate text-ink-muted">API {statusMessage}</span>
+                </div>
+                {apiStatus !== "online" && (
+                  <button
+                    type="button"
+                    onClick={() => void checkApi()}
+                    disabled={apiStatus === "checking"}
+                    className="shrink-0 font-medium text-primary hover:underline disabled:opacity-50"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+
+              {apiStatus === "checking" && wakeAttempt > 0 && (
+                <p className="mt-2 text-xs text-[#B8781F]">
+                  Free-tier Render spins down after idle. First request can take up to 60 seconds.
+                </p>
+              )}
+
+              <div className="mt-5 rounded-lg border border-border/80 bg-surface/80 px-4 py-3.5">
+                <p className="text-xs font-medium text-foreground">{DEMO_ACCOUNT.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                  For local and demo deployments when the default admin is enabled.
+                </p>
+                <dl className="mt-3 space-y-1.5 font-mono text-[11px] text-ink-muted">
+                  <div className="flex justify-between gap-3">
+                    <dt>Email</dt>
+                    <dd className="text-foreground">{DEMO_ACCOUNT.email}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt>Password</dt>
+                    <dd className="text-foreground">{DEMO_ACCOUNT.password}</dd>
+                  </div>
+                </dl>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-full"
+                  onClick={applyDemoAccount}
+                  disabled={loading}
+                >
+                  Fill demo credentials
+                </Button>
+              </div>
+
+              <form onSubmit={onSubmit} className="mt-6 space-y-4">
+                <div className="ecdat-login-field">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    type="email"
+                    required
+                    autoComplete="email"
+                    className="mt-1.5 transition-shadow duration-300"
+                  />
+                </div>
+                <div className="ecdat-login-field">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    className="mt-1.5 transition-shadow duration-300"
+                  />
+                </div>
+                {error && <p className="text-sm text-[#B3261E]">{error}</p>}
+                <MagneticButton className="w-full">
+                  <ShimmerCta className="w-full">
+                    <Button className="w-full" type="submit" disabled={loading}>
+                      {loading ? "Signing in…" : "Sign in"}
+                    </Button>
+                  </ShimmerCta>
+                </MagneticButton>
+              </form>
+
+              <p className="mt-5 text-center text-sm text-ink-muted">
+                New to ECDAT?{" "}
+                <Link href="/signup" className="font-medium text-primary hover:underline">
+                  Create an account
+                </Link>
+              </p>
+              <p className="mt-4 font-mono text-[11px] text-ink-muted">Backend: {API_URL}</p>
+            </BorderBeamCard>
+          </div>
         </div>
-      </div>
+      </section>
     </MarketingLayout>
   );
 }

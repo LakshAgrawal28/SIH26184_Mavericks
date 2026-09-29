@@ -1,16 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { IconLogoMark } from "@/components/icons/NavIcons";
+import { MarketingCursorGlow } from "@/components/marketing/MarketingCursorGlow";
 import { Button } from "@/components/ui/button";
+import { getToken } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function SiteHeader({ className }: { className?: string }) {
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    setSignedIn(Boolean(getToken()));
+  }, []);
+
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 border-b border-border/70 bg-[#fbfbfa]/85 backdrop-blur-xl",
+        "ecdat-glass-header sticky top-0 z-50 border-b border-white/40",
         className
       )}
     >
@@ -34,12 +42,20 @@ export function SiteHeader({ className }: { className?: string }) {
           <a href="/#capabilities" className="text-ink-muted transition-colors hover:text-foreground">
             Proof
           </a>
-          <Link href="/login" className="text-ink-muted transition-colors hover:text-primary">
-            Sign in
-          </Link>
+          {signedIn ? (
+            <Link href="/dashboard" className="font-medium text-primary transition-colors hover:text-primary/80">
+              Dashboard
+            </Link>
+          ) : (
+            <Link href="/login" className="text-ink-muted transition-colors hover:text-primary">
+              Sign in
+            </Link>
+          )}
         </nav>
         <Button asChild size="sm" className="shrink-0 shadow-sm">
-          <Link href="/login">Open console</Link>
+          <Link href={signedIn ? "/dashboard" : "/login"}>
+            {signedIn ? "Open dashboard" : "Open console"}
+          </Link>
         </Button>
       </div>
     </header>
@@ -75,7 +91,8 @@ export function MarketingLayout({
   className?: string;
 }) {
   return (
-    <div className={cn("flex min-h-screen flex-col", className)}>
+    <div className={cn("ecdat-marketing-root flex min-h-screen flex-col", className)}>
+      <MarketingCursorGlow />
       <SiteHeader />
       <div className="flex-1">{children}</div>
       <SiteFooter />

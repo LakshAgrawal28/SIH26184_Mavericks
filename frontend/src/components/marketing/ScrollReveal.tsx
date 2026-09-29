@@ -49,7 +49,7 @@ export function ScrollReveal({
       ref={ref}
       className={cn(
         "transition-[opacity,transform] duration-[750ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-        visible ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0",
+        visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
         className
       )}
       style={visible && delayMs ? { transitionDelay: `${delayMs}ms` } : undefined}

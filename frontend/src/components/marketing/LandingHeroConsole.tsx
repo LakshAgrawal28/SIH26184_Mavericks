@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AnimatedCount from "@/components/AnimatedCount";
+import { BorderBeamCard } from "@/components/marketing/BorderBeamCard";
 import { cn } from "@/lib/utils";
 
 const RISK = [
@@ -40,12 +41,15 @@ export default function LandingHeroConsole() {
   }, [reduceMotion]);
 
   return (
-    <div
-      className="panel-elevated overflow-hidden shadow-[0_24px_80px_-24px_rgba(13,59,102,0.18)]"
-      role="region"
-      aria-label="Product console preview"
+    <BorderBeamCard
+      className="shadow-[0_24px_80px_-24px_rgba(13,59,102,0.22)]"
+      innerClassName="overflow-hidden"
     >
-      <div className="flex items-center gap-2 border-b border-border/80 bg-[#f6f5f3] px-4 py-2.5">
+      <div
+        className="flex items-center gap-2 border-b border-border/80 bg-[#f6f5f3] px-4 py-2.5"
+        role="region"
+        aria-label="Product console preview"
+      >
         <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
         <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
         <span className="h-2 w-2 rounded-full bg-border" aria-hidden />
@@ -170,6 +174,6 @@ export default function LandingHeroConsole() {
           Evidence: src/tls/nginx.conf:14 · RS256 · hybrid → ML-DSA-65
         </p>
       </div>
-    </div>
+    </BorderBeamCard>
   );
 }

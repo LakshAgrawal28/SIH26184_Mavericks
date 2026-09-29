@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import CipherScramble from "@/components/CipherScramble";
+import { GlassPanel } from "@/components/marketing/GlassPanel";
 import HeroRadialGlow from "@/components/marketing/HeroRadialGlow";
+import { MagneticButton } from "@/components/marketing/MagneticButton";
+import { MarketingHeroSpotlight } from "@/components/marketing/MarketingHeroSpotlight";
+import { ShimmerCta } from "@/components/marketing/ShimmerCta";
+import { StaggeredTextReveal } from "@/components/marketing/StaggeredTextReveal";
 import LandingAnimatedProof from "@/components/marketing/LandingAnimatedProof";
 import LandingHeroConsole from "@/components/marketing/LandingHeroConsole";
 import LandingSecurityControls from "@/components/marketing/LandingSecurityControls";
@@ -54,13 +59,15 @@ export default function LandingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (getToken()) router.replace("/dashboard");
+    const params = new URLSearchParams(window.location.search);
+    const goDashboard = params.get("go") === "dashboard" || params.get("console") === "1";
+    if (goDashboard && getToken()) router.replace("/dashboard");
   }, [router]);
 
   return (
     <MarketingLayout>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border/70">
+      <MarketingHeroSpotlight className="relative overflow-hidden border-b border-border/70">
         <HeroRadialGlow />
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.35]"
@@ -74,11 +81,12 @@ export default function LandingPage() {
         <div className="ecdat-hero-grain" aria-hidden />
 
         <div className="relative mx-auto max-w-[1180px] px-6 pb-16 pt-10 lg:pb-24 lg:pt-14">
-          <div className="flex flex-wrap items-center gap-2 motion-enter">
-            {TRUST.map((item) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {TRUST.map((item, i) => (
               <span
                 key={item}
-                className="rounded-full border border-border/80 bg-card/90 px-3 py-1 text-[11px] font-medium text-ink-muted shadow-sm"
+                className="ecdat-trust-pill rounded-full border border-border/80 bg-card/90 px-3 py-1 text-[11px] font-medium text-ink-muted shadow-sm"
+                style={{ animationDelay: `${40 + i * 55}ms` }}
               >
                 {item}
               </span>
@@ -90,9 +98,10 @@ export default function LandingPage() {
               <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
                 Team Mavericks · Blockchain &amp; Cybersecurity
               </p>
-              <h1 className="text-display mt-4 text-[2.35rem] leading-[1.06] tracking-[-0.03em] text-foreground sm:text-5xl lg:text-[3.35rem]">
-                The security X-ray for enterprise cryptography
-              </h1>
+              <StaggeredTextReveal
+                className="mt-4 text-[2.35rem] leading-[1.06] tracking-[-0.03em] text-foreground sm:text-5xl lg:text-[3.35rem]"
+                lines={["The security X-ray", "for enterprise cryptography"]}
+              />
               <CipherScramble className="mt-6 font-mono text-sm text-foreground/85 sm:text-base" />
               <p className="mt-5 text-base leading-relaxed text-ink-muted sm:text-[17px]">
                 <strong className="font-semibold text-foreground">ECDAT</strong> closes the loop NTRO asked for:
@@ -100,9 +109,13 @@ export default function LandingPage() {
                 export a validated CBOM — from a single archive upload.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Button asChild size="lg" className="h-11 px-6 shadow-md">
-                  <Link href="/login">Launch live demo</Link>
-                </Button>
+                <MagneticButton>
+                  <ShimmerCta>
+                    <Button asChild size="lg" className="h-11 px-6 shadow-md">
+                      <Link href="/login">Launch live demo</Link>
+                    </Button>
+                  </ShimmerCta>
+                </MagneticButton>
                 <Button variant="outline" asChild size="lg" className="h-11 px-6">
                   <a href="https://ecdat-api-iqgx.onrender.com/docs" target="_blank" rel="noreferrer">
                     API documentation
@@ -128,7 +141,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </section>
+      </MarketingHeroSpotlight>
 
       {/* Impact */}
       <section id="impact" className="border-b border-border/70 bg-surface/50">
@@ -143,10 +156,10 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {PILLARS.map((p, i) => (
               <ScrollReveal key={p.title} delayMs={i * 70}>
-                <article className="panel-interactive h-full p-7">
+                <GlassPanel as="article" spotlight className="panel-interactive h-full p-7">
                   <h3 className="text-lg font-semibold tracking-tight text-foreground">{p.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed text-ink-muted">{p.body}</p>
-                </article>
+                </GlassPanel>
               </ScrollReveal>
             ))}
           </div>
@@ -214,13 +227,17 @@ export default function LandingPage() {
           </div>
           </ScrollReveal>
           <ScrollReveal delayMs={80}>
-          <Button
-            asChild
-            size="lg"
-            className="h-11 shrink-0 border-0 bg-white px-8 text-primary hover:bg-white/95"
-          >
-            <Link href="/login">Open ECDAT console</Link>
-          </Button>
+          <MagneticButton>
+            <ShimmerCta>
+              <Button
+                asChild
+                size="lg"
+                className="h-11 shrink-0 border-0 bg-white px-8 text-primary hover:bg-white/95"
+              >
+                <Link href="/login">Open ECDAT console</Link>
+              </Button>
+            </ShimmerCta>
+          </MagneticButton>
           </ScrollReveal>
         </div>
       </section>
