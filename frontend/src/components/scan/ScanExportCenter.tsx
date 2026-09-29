@@ -20,12 +20,14 @@ export default function ScanExportCenter({
 }: Props) {
   const [cbomLoading, setCbomLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [sarifLoading, setSarifLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onExport(kind: "cbom" | "pdf") {
+  async function onExport(kind: "cbom" | "pdf" | "sarif") {
     setError(null);
     if (kind === "cbom") setCbomLoading(true);
-    else setPdfLoading(true);
+    else if (kind === "pdf") setPdfLoading(true);
+    else setSarifLoading(true);
     try {
       await downloadScanReport(scanId, kind);
     } catch (err) {
@@ -33,6 +35,7 @@ export default function ScanExportCenter({
     } finally {
       setCbomLoading(false);
       setPdfLoading(false);
+      setSarifLoading(false);
     }
   }
 
@@ -40,8 +43,8 @@ export default function ScanExportCenter({
     <div className={cn("panel p-6", className)}>
       <h3 className="text-sm font-semibold text-foreground">Export center</h3>
       <p className="mt-1 text-sm text-ink-muted">
-        NTRO deliverables: CycloneDX 1.6 CBOM (machine-readable) and executive PDF (leadership
-        summary with Mosca context).
+        NTRO deliverables: CycloneDX 1.6 CBOM, SARIF 2.1.0 (CI and tooling integration), and
+        executive PDF (leadership summary with Mosca context).
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <Button
@@ -51,6 +54,14 @@ export default function ScanExportCenter({
           onClick={() => onExport("cbom")}
         >
           {cbomLoading ? "Preparing…" : "Download CycloneDX CBOM"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={sarifLoading}
+          onClick={() => onExport("sarif")}
+        >
+          {sarifLoading ? "Preparing…" : "Download SARIF 2.1.0"}
         </Button>
         <Button type="button" disabled={pdfLoading} onClick={() => onExport("pdf")}>
           {pdfLoading ? "Generating…" : "Download executive PDF"}

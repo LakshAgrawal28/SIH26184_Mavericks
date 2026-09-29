@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { HeroNetwork } from "@/components/landing/HeroNetwork";
 import { RevealText } from "@/components/landing/primitives";
 import { BorderBeamCard } from "@/components/marketing/BorderBeamCard";
-import { MagneticButton } from "@/components/marketing/MagneticButton";
-import { ShimmerCta } from "@/components/marketing/ShimmerCta";
 import { MarketingLayout } from "@/components/marketing/SiteChrome";
 import { API_URL, fetchWithTimeout, waitForApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -27,6 +25,12 @@ const HIGHLIGHTS = [
   "Evidence-backed artefact inventory",
   "CycloneDX 1.6 export validation",
 ];
+
+function apiStatusDotClass(status: ApiStatus): string {
+  if (status === "online") return "bg-[var(--intel-green)]";
+  if (status === "offline") return "bg-[var(--intel-red)]";
+  return "bg-[var(--intel-amber)] animate-pulse";
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -120,13 +124,17 @@ export default function LoginPage() {
     <MarketingLayout className="relative">
       <section className="relative min-h-[calc(100vh-60px)] overflow-hidden border-b border-border">
         <div className="intel-grid pointer-events-none absolute inset-0" aria-hidden />
-        <HeroNetwork variant="static" className="opacity-50" />
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_30%_50%,rgba(5,7,11,0.85),transparent_80%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_42%_48%,rgba(13,59,102,0.06),transparent_72%)]"
+          aria-hidden
+        />
+        <HeroNetwork variant="static" className="opacity-70" />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_65%_at_55%_50%,rgba(251,251,250,0.72),transparent_80%)]"
           aria-hidden
         />
 
-        <div className="relative mx-auto grid max-w-[1180px] gap-12 px-6 py-12 lg:grid-cols-[1.05fr_420px] lg:items-center lg:gap-16 lg:py-20">
+        <div className="relative mx-auto grid max-w-[1180px] gap-10 px-6 py-12 lg:grid-cols-[1.05fr_420px] lg:items-center lg:gap-14 lg:py-20">
           <div className="max-w-xl">
             <Link
               href="/"
@@ -137,23 +145,23 @@ export default function LoginPage() {
             </Link>
 
             <p
-              className="ecdat-trust-pill intel-label mt-10"
+              className="ecdat-trust-pill intel-label mt-8"
               style={{ animationDelay: "90ms" }}
             >
               <span className="text-primary">NTRO / ECDAT</span> // SIH 2026 · PS 26164
             </p>
 
-            <h1 className="intel-heading mt-4 text-[2rem] sm:text-[2.35rem]">
+            <h1 className="intel-heading mt-3 text-[2rem] sm:text-[2.35rem]">
               <RevealText text="Operator" immediate delay={0.1} className="block" wordClassName="intel-gradient-text" />
               <RevealText text="console." immediate delay={0.25} className="block" wordClassName="intel-accent-text" />
             </h1>
 
-            <p className="motion-enter motion-enter-delay-3 mt-6 text-sm leading-relaxed text-ink-muted sm:text-[15px]">
+            <p className="motion-enter motion-enter-delay-3 mt-5 text-sm leading-relaxed text-ink-muted sm:text-[15px]">
               Sign in to run discovery scans, review Mosca timelines, export CBOMs, and use the grounded AI
               assistant — all tied to deterministic scan data.
             </p>
 
-            <ul className="mt-8 space-y-3">
+            <ul className="mt-7 space-y-2.5">
               {HIGHLIGHTS.map((item, i) => (
                 <li
                   key={item}
@@ -168,22 +176,23 @@ export default function LoginPage() {
           </div>
 
           <div className="motion-enter motion-enter-delay-2 lg:justify-self-end">
-            <BorderBeamCard innerClassName="bg-[#0a0f17] p-8">
-              <h2 className="font-mono text-sm tracking-[0.16em] text-foreground uppercase">Operator sign-in</h2>
+            <BorderBeamCard innerClassName="intel-glass p-8">
+              <h2 className="intel-heading text-[1.35rem] text-foreground">Operator sign-in</h2>
               <p className="mt-1 text-sm text-ink-muted">Console access for your deployment</p>
 
-              <div className="mt-4 flex items-center justify-between gap-2 font-mono text-xs">
+              <div
+                className="mt-4 flex items-center justify-between gap-2 rounded-lg border border-border bg-surface/80 px-3 py-2 font-mono text-xs"
+                role="status"
+                aria-live="polite"
+              >
                 <div className="flex min-w-0 items-center gap-2">
                   <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      apiStatus === "online"
-                        ? "border-[#1B7A3D] bg-[#1B7A3D]"
-                        : apiStatus === "offline"
-                          ? "border-[#B3261E] bg-[#B3261E]"
-                          : "border-[#B8781F] bg-[#B8781F] animate-pulse"
-                    }`}
+                    className={`h-2 w-2 shrink-0 rounded-full ${apiStatusDotClass(apiStatus)}`}
+                    aria-hidden
                   />
-                  <span className="truncate text-ink-muted">API {statusMessage}</span>
+                  <span className="truncate text-foreground">
+                    API <span className="text-ink-muted">{statusMessage}</span>
+                  </span>
                 </div>
                 {apiStatus !== "online" && (
                   <button
@@ -198,23 +207,23 @@ export default function LoginPage() {
               </div>
 
               {apiStatus === "checking" && wakeAttempt > 0 && (
-                <p className="mt-2 text-xs text-[#B8781F]">
+                <p className="mt-2 text-xs text-[var(--intel-amber)]">
                   Free-tier Render spins down after idle. First request can take up to 60 seconds.
                 </p>
               )}
 
-              <div className="mt-5 rounded-lg border border-border bg-white/[0.03] px-4 py-3.5">
+              <div className="panel-muted mt-5 px-4 py-3.5">
                 <p className="text-xs font-medium text-foreground">{DEMO_ACCOUNT.label}</p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-muted">
                   For local and demo deployments when the default admin is enabled.
                 </p>
-                <dl className="mt-3 space-y-1.5 font-mono text-[11px] text-ink-muted">
+                <dl className="mt-3 space-y-1.5 font-mono text-[11px]">
                   <div className="flex justify-between gap-3">
-                    <dt>Email</dt>
+                    <dt className="text-ink-muted">Email</dt>
                     <dd className="text-foreground">{DEMO_ACCOUNT.email}</dd>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <dt>Password</dt>
+                    <dt className="text-ink-muted">Password</dt>
                     <dd className="text-foreground">{DEMO_ACCOUNT.password}</dd>
                   </div>
                 </dl>
@@ -232,7 +241,9 @@ export default function LoginPage() {
 
               <form onSubmit={onSubmit} className="mt-6 space-y-4">
                 <div className="ecdat-login-field">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-foreground">
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     value={email}
@@ -240,11 +251,13 @@ export default function LoginPage() {
                     type="email"
                     required
                     autoComplete="email"
-                    className="mt-1.5 transition-shadow duration-300"
+                    className="mt-1.5 border-border/90 bg-surface shadow-none transition-shadow duration-300"
                   />
                 </div>
                 <div className="ecdat-login-field">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-foreground">
+                    Password
+                  </Label>
                   <Input
                     id="password"
                     value={password}
@@ -252,17 +265,13 @@ export default function LoginPage() {
                     type="password"
                     required
                     autoComplete="current-password"
-                    className="mt-1.5 transition-shadow duration-300"
+                    className="mt-1.5 border-border/90 bg-surface shadow-none transition-shadow duration-300"
                   />
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <MagneticButton className="w-full">
-                  <ShimmerCta className="w-full">
-                    <Button className="w-full" type="submit" disabled={loading}>
-                      {loading ? "Signing in…" : "Sign in"}
-                    </Button>
-                  </ShimmerCta>
-                </MagneticButton>
+                <Button className="w-full" type="submit" size="lg" disabled={loading}>
+                  {loading ? "Signing in…" : "Sign in"}
+                </Button>
               </form>
 
               <p className="mt-5 text-center text-sm text-ink-muted">

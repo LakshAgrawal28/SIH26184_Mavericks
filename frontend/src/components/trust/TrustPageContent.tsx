@@ -1,15 +1,10 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
-import { apiFetch, getToken } from "@/lib/api";
 import { corpusDemoHref } from "@/lib/corpus";
 
-type AccuracyReport = {
+export type AccuracyReport = {
   headline?: string;
   recall?: number;
   required_checks?: number;
@@ -27,36 +22,27 @@ type AccuracyReport = {
   }[];
 };
 
-type DetectorStatus = {
+export type DetectorStatus = {
   semgrep_cli?: boolean;
   layers?: string[];
   cbom_schema?: string;
 };
 
-export default function TrustPage() {
-  const router = useRouter();
-  const [accuracy, setAccuracy] = useState<AccuracyReport | null>(null);
-  const [detectors, setDetectors] = useState<DetectorStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type TrustPageContentProps = {
+  accuracy: AccuracyReport | null;
+  detectors: DetectorStatus | null;
+  loading: boolean;
+  error: string | null;
+  signedIn: boolean;
+};
 
-  useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
-    Promise.all([
-      apiFetch<AccuracyReport>("/api/v1/accuracy"),
-      apiFetch<DetectorStatus>("/api/v1/detectors"),
-    ])
-      .then(([acc, det]) => {
-        setAccuracy(acc);
-        setDetectors(det);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load trust data"))
-      .finally(() => setLoading(false));
-  }, [router]);
-
+export function TrustPageContent({
+  accuracy,
+  detectors,
+  loading,
+  error,
+  signedIn,
+}: TrustPageContentProps) {
   return (
     <>
       <PageHeader
@@ -64,9 +50,20 @@ export default function TrustPage() {
         description="Published, deterministic detector scoreboard — evidence for judges and security reviewers."
         breadcrumb={["ECDAT", "Trust"]}
         actions={
-          <Button variant="outline" asChild>
-            <Link href={corpusDemoHref("mixed-enterprise.zip")}>Run judge demo scan</Link>
-          </Button>
+          signedIn ? (
+            <Button variant="outline" asChild>
+              <Link href={corpusDemoHref("mixed-enterprise.zip")}>Run judge demo scan</Link>
+            </Button>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/login">Sign in for demo scan</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/signup">Create account</Link>
+              </Button>
+            </div>
+          )
         }
       />
 
