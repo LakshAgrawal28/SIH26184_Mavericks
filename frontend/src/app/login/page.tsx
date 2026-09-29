@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import CipherScramble from "@/components/CipherScramble";
+import { HeroNetwork } from "@/components/landing/HeroNetwork";
+import { RevealText } from "@/components/landing/primitives";
 import { BorderBeamCard } from "@/components/marketing/BorderBeamCard";
 import { MagneticButton } from "@/components/marketing/MagneticButton";
-import { MeshGradientBackground } from "@/components/marketing/MeshGradientBackground";
 import { ShimmerCta } from "@/components/marketing/ShimmerCta";
-import { StaggeredTextReveal } from "@/components/marketing/StaggeredTextReveal";
 import { MarketingLayout } from "@/components/marketing/SiteChrome";
 import { API_URL, fetchWithTimeout, waitForApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -119,35 +118,37 @@ export default function LoginPage() {
 
   return (
     <MarketingLayout className="relative">
-      <section className="relative min-h-[calc(100vh-60px)] overflow-hidden border-b border-border/60">
-        <MeshGradientBackground />
-        <div className="ecdat-hero-grain" aria-hidden />
+      <section className="relative min-h-[calc(100vh-60px)] overflow-hidden border-b border-border">
+        <div className="intel-grid pointer-events-none absolute inset-0" aria-hidden />
+        <HeroNetwork variant="static" className="opacity-50" />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_30%_50%,rgba(5,7,11,0.85),transparent_80%)]"
+          aria-hidden
+        />
 
         <div className="relative mx-auto grid max-w-[1180px] gap-12 px-6 py-12 lg:grid-cols-[1.05fr_420px] lg:items-center lg:gap-16 lg:py-20">
           <div className="max-w-xl">
             <Link
               href="/"
-              className="ecdat-trust-pill inline-block text-xs text-ink-muted transition-colors hover:text-primary"
+              className="ecdat-trust-pill inline-block font-mono text-[11px] tracking-[0.12em] text-ink-muted uppercase transition-colors hover:text-primary"
               style={{ animationDelay: "20ms" }}
             >
               ← Back to overview
             </Link>
 
             <p
-              className="ecdat-trust-pill mt-10 text-xs font-semibold tracking-[0.14em] text-primary uppercase"
+              className="ecdat-trust-pill intel-label mt-10"
               style={{ animationDelay: "90ms" }}
             >
-              Smart India Hackathon 2026 · PS 26164
+              <span className="text-primary">NTRO / ECDAT</span> // SIH 2026 · PS 26164
             </p>
 
-            <StaggeredTextReveal
-              className="mt-4 text-[2rem] leading-[1.08] tracking-[-0.03em] text-foreground sm:text-[2.35rem]"
-              lines={["Operator console", "for ECDAT"]}
-            />
+            <h1 className="intel-heading mt-5 text-[2.6rem] sm:text-[3.4rem]">
+              <RevealText text="Operator" immediate delay={0.1} className="block" wordClassName="intel-gradient-text" />
+              <RevealText text="console." immediate delay={0.25} className="block" wordClassName="intel-accent-text" />
+            </h1>
 
-            <CipherScramble className="motion-enter motion-enter-delay-2 mt-6 font-mono text-sm text-foreground/90 sm:text-base" />
-
-            <p className="motion-enter motion-enter-delay-3 mt-5 text-sm leading-relaxed text-ink-muted sm:text-[15px]">
+            <p className="motion-enter motion-enter-delay-3 mt-6 text-sm leading-relaxed text-ink-muted sm:text-[15px]">
               Sign in to run discovery scans, review Mosca timelines, export CBOMs, and use the grounded AI
               assistant — all tied to deterministic scan data.
             </p>
@@ -167,8 +168,8 @@ export default function LoginPage() {
           </div>
 
           <div className="motion-enter motion-enter-delay-2 lg:justify-self-end">
-            <BorderBeamCard innerClassName="p-8">
-              <h2 className="text-display text-xl text-foreground">Operator sign-in</h2>
+            <BorderBeamCard innerClassName="bg-[#0a0f17] p-8">
+              <h2 className="font-mono text-sm tracking-[0.16em] text-foreground uppercase">Operator sign-in</h2>
               <p className="mt-1 text-sm text-ink-muted">Console access for your deployment</p>
 
               <div className="mt-4 flex items-center justify-between gap-2 font-mono text-xs">
@@ -202,7 +203,7 @@ export default function LoginPage() {
                 </p>
               )}
 
-              <div className="mt-5 rounded-lg border border-border/80 bg-surface/80 px-4 py-3.5">
+              <div className="mt-5 rounded-lg border border-border bg-white/[0.03] px-4 py-3.5">
                 <p className="text-xs font-medium text-foreground">{DEMO_ACCOUNT.label}</p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-muted">
                   For local and demo deployments when the default admin is enabled.
@@ -254,7 +255,7 @@ export default function LoginPage() {
                     className="mt-1.5 transition-shadow duration-300"
                   />
                 </div>
-                {error && <p className="text-sm text-[#B3261E]">{error}</p>}
+                {error && <p className="text-sm text-[#fca5a5]">{error}</p>}
                 <MagneticButton className="w-full">
                   <ShimmerCta className="w-full">
                     <Button className="w-full" type="submit" disabled={loading}>
