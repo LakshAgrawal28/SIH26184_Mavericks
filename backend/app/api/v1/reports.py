@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.cbom.builder import build_cbom, build_pdf_summary
 from app.cbom.validator import validate_cbom
+from app.sarif.builder import build_sarif
 from app.config import settings
 from app.core.deps import get_current_user, get_scan_for_user
 from app.db.session import get_db
@@ -59,6 +60,22 @@ def validate_cbom_export(scan_id: str, db: Session = Depends(get_db), user: User
     result["component_count"] = len(cbom.get("components") or [])
     result["spec_version"] = cbom.get("specVersion")
     return result
+
+
+@router.post("/{scan_id}/reports/sarif")
+def export_sarif(scan_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    scan, artefacts = _scan_artefacts(db, scan_id, user)
+    sarif = build_sarif(scan, artefacts)
+    key = f"reports/{scan.id}/results.sarif.json"
+    if not settings.sync_scan:
+        storage_service.upload_json(key, sarif)
+    db.add(Report(scan_id=scan.id, format="sarif", storage_path=key))
+    db.commit()
+    return Response(
+        content=json.dumps(sarif, indent=2),
+        media_type="application/sarif+json",
+        headers={"Content-Disposition": f'attachment; filename="ecdat-sarif-{scan_id}.sarif.json"'},
+    )
 
 
 @router.post("/{scan_id}/reports/pdf")
