@@ -46,7 +46,17 @@ def detector_status():
     return {
         "semgrep_cli": semgrep_available(),
         "semgrep_rules_dir": str(rules_dir()),
-        "layers": ["semgrep", "catalog", "source", "manifest", "certificate", "config", "binary"],
+        "layers": [
+            "semgrep",
+            "catalog",
+            "source",
+            "manifest",
+            "certificate",
+            "config",
+            "binary",
+            "cloud-hsm",
+            "sbom-lockfile",
+        ],
         "cbom_schema": "CycloneDX 1.6 (ECMA-424)",
     }
 

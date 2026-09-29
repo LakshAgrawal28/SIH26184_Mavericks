@@ -265,11 +265,21 @@ def scan_summary(scan_id: str, db: Session = Depends(get_db), user: User = Depen
         if action in ("Keep", "Inspect") or qb in ("none", "inspect"):
             keep_or_inspect_count += 1
     layers = sorted({_layer_name(m) for m in methods})
+    total = len(artefacts) or 1
+    shor_n = quantum_classes.get("shor", 0)
+    broken_n = quantum_classes.get("broken_classical", 0)
+    safe_n = quantum_classes.get("none", 0)
+    exposed = shor_n + broken_n
+    agility_index = round(max(0.0, min(100.0, (1 - exposed / total) * 100)), 1)
     return {
         "scan_id": str(scan.id),
         "name": scan.name,
         "status": scan.status,
         "total_artefacts": len(artefacts),
+        "coverage_note": scan.current_stage if scan.status == "completed" else None,
+        "agility_index": agility_index,
+        "shor_exposure_pct": round(shor_n / total * 100, 1),
+        "pqc_safe_pct": round(safe_n / total * 100, 1),
         "risk_distribution": bands,
         "detection_methods": methods,
         "layers_present": layers,
