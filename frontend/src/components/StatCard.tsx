@@ -4,11 +4,15 @@ import { cn } from "@/lib/utils";
 type StatCardProps = {
   label: string;
   value: string | number;
+  hint?: string;
+  /** 0–100 for optional progress bar under the value */
+  progress?: number;
   dot?: "critical" | "high" | "default";
 };
 
-export default function StatCard({ label, value, dot = "default" }: StatCardProps) {
+export default function StatCard({ label, value, hint, progress, dot = "default" }: StatCardProps) {
   const numeric = typeof value === "number";
+  const showBar = progress !== undefined && progress >= 0;
 
   return (
     <div className="panel-interactive px-4 py-3.5">
@@ -22,6 +26,12 @@ export default function StatCard({ label, value, dot = "default" }: StatCardProp
       >
         {numeric ? <AnimatedCount value={value} /> : value}
       </p>
+      {showBar && (
+        <div className="metric-bar mt-2.5" aria-hidden>
+          <div className="metric-bar-fill" style={{ width: `${Math.min(100, progress)}%` }} />
+        </div>
+      )}
+      {hint && <p className="stat-hint mt-2">{hint}</p>}
     </div>
   );
 }

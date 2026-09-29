@@ -72,10 +72,15 @@ export default function DashboardPage() {
       />
 
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total scans" value={totalScans} />
-        <StatCard label="Total artefacts" value={totalArtefacts} />
-        <StatCard label="Critical risk" value={totalCritical} dot="critical" />
-        <StatCard label="High risk" value={totalHigh} dot="high" />
+        <StatCard label="Total scans" value={totalScans} hint="Completed and in-flight discovery runs" />
+        <StatCard label="Total artefacts" value={totalArtefacts} hint="Crypto assets across all scans" />
+        <StatCard
+          label="Critical risk"
+          value={totalCritical}
+          dot="critical"
+          hint="Aggregated critical band counts"
+        />
+        <StatCard label="High risk" value={totalHigh} dot="high" hint="Aggregated high band counts" />
       </div>
 
       <PageHeader
@@ -127,10 +132,10 @@ export default function DashboardPage() {
                     <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-ink-muted">
                       {s.total_artefacts}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-[#fca5a5]">
+                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-destructive">
                       {s.critical_risk_count}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-[#fcd34d]">
+                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-[#a66b12]">
                       {s.high_risk_count}
                     </td>
                     <td className="px-4 py-2.5 text-right">
@@ -147,21 +152,36 @@ export default function DashboardPage() {
       </div>
 
       {accuracy && (
-        <div className="panel flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-          <div>
+        <div className="panel flex flex-wrap items-start justify-between gap-4 px-5 py-4">
+          <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium tracking-wide text-ink-muted uppercase">Corpus accuracy</p>
             <p className="mt-1 text-sm text-foreground">
               {accuracy.headline || "Deterministic detector scoreboard against labelled fixtures."}
             </p>
-            <p className="mt-1.5 font-mono text-xs text-ink-muted">
-              Recall {accuracy.recall ?? "—"}
-              {" · "}
-              Invented algorithms {accuracy.invented_algorithms ?? "—"}
-              {" · "}
-              {accuracy.deterministic ? "Deterministic" : "Non-deterministic"}
-            </p>
+            <dl className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md border border-border bg-surface/80 px-3 py-2">
+                <dt className="text-[11px] text-ink-muted">Recall</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+                  {accuracy.recall != null
+                    ? `${Math.round((accuracy.recall <= 1 ? accuracy.recall * 100 : accuracy.recall) * 10) / 10}%`
+                    : "—"}
+                </dd>
+              </div>
+              <div className="rounded-md border border-border bg-surface/80 px-3 py-2">
+                <dt className="text-[11px] text-ink-muted">Invented algorithms</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+                  {accuracy.invented_algorithms ?? "—"}
+                </dd>
+              </div>
+              <div className="rounded-md border border-border bg-surface/80 px-3 py-2">
+                <dt className="text-[11px] text-ink-muted">Engine</dt>
+                <dd className="mt-0.5 text-sm font-semibold text-foreground">
+                  {accuracy.deterministic ? "Deterministic" : "Non-deterministic"}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <Link href="/trust">Full trust report</Link>
           </Button>
         </div>

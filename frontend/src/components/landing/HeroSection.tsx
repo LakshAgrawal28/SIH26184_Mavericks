@@ -39,12 +39,12 @@ export function HeroSection() {
     >
       <div className="intel-grid pointer-events-none absolute inset-0" aria-hidden />
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_45%,rgba(56,189,248,0.10),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_42%,rgba(13,59,102,0.06),transparent_72%)]"
         aria-hidden
       />
-      <HeroNetwork className="opacity-90" />
+      <HeroNetwork className="opacity-85" />
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_50%_50%,rgba(5,7,11,0.82),transparent_75%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_48%,rgba(251,251,250,0.55),transparent_78%)]"
         aria-hidden
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-background" aria-hidden />
@@ -81,7 +81,7 @@ export function HeroSection() {
 
         <div className="flex flex-1 flex-col items-center justify-center pb-10 pt-2 text-center sm:pb-12">
           <p className="intel-label text-[10px]">SIH 2026 · PS 26164 · Team Mavericks</p>
-          <h1 className="intel-heading mt-4 text-[2.35rem] sm:text-[3.25rem] lg:text-[4.25rem]">
+          <h1 className="intel-heading mt-4 text-[2.15rem] sm:text-[2.85rem] lg:text-[3.5rem]">
             <RevealText
               text="Know your"
               immediate

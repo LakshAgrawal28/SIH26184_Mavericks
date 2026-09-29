@@ -113,7 +113,7 @@ function LabelledNode({
 }) {
   const ref = useRef<THREE.Mesh>(null);
   const hovered = useRef(false);
-  const color = node.quantumVulnerable ? (primary ? "#f87171" : "#fb923c") : "#38bdf8";
+  const color = node.quantumVulnerable ? (primary ? "#c41e1e" : "#a66b12") : "#1a5f8a";
 
   useFrame(() => {
     const mesh = ref.current;
@@ -173,7 +173,7 @@ function ChainEdges() {
   }, []);
   return (
     <lineSegments geometry={geometry}>
-      <lineBasicMaterial color="#7dd3fc" transparent opacity={0.85} />
+      <lineBasicMaterial color="#1a5f8a" transparent opacity={0.75} />
     </lineSegments>
   );
 }
@@ -218,11 +218,11 @@ export default function IntelligenceGraphScene({ onHover }: { onHover: Hover }) 
       onPointerMissed={() => onHover(null)}
     >
       <ResponsiveCamera />
-      <fog attach="fog" args={["#05070b", 6, 18]} />
+      <fog attach="fog" args={["#fbfbfa", 6, 18]} />
       <Rig>
         <FieldNodes points={points} />
         <lineSegments geometry={lines}>
-          <lineBasicMaterial color="#38bdf8" transparent opacity={0.08} />
+          <lineBasicMaterial color="#0d3b66" transparent opacity={0.1} />
         </lineSegments>
         <ChainEdges />
         {GRAPH_CHAIN.map((n) => (

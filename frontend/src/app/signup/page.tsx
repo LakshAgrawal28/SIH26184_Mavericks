@@ -72,7 +72,7 @@ export default function SignupPage() {
               <Input id="password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={8} autoComplete="new-password" className="mt-1.5" />
               <p className="mt-1 text-xs text-ink-muted">At least 8 characters.</p>
             </div>
-            {error && <p className="text-sm text-[#fca5a5]">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Creating account…" : "Create account"}
             </Button>

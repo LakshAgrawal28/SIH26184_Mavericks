@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { AgilityMetrics } from "@/lib/scanInsights";
 import type { Recommendation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -16,9 +17,39 @@ type Props = {
 };
 
 function urgencyStyle(category: string) {
-  if (category === "EXPIRED" || category === "URGENT") return "border-[#B3261E] text-[#B3261E]";
-  if (category === "PLAN") return "border-[#B8781F] text-[#B8781F]";
-  return "border-[#1B7A3D] text-[#1B7A3D]";
+  if (category === "EXPIRED" || category === "URGENT") return "border-destructive/40 bg-destructive/5 text-destructive";
+  if (category === "PLAN") return "border-[#a66b12]/40 bg-[#a66b12]/8 text-[#a66b12]";
+  return "border-[#1B7A3D]/35 bg-[#1B7A3D]/8 text-[#1B7A3D]";
+}
+
+function MetricCell({
+  label,
+  value,
+  sub,
+  barPct,
+  barTone = "primary",
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: string;
+  barPct?: number;
+  barTone?: "primary" | "risk";
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-surface/80 px-3.5 py-3">
+      <dt className="text-[11px] font-medium text-ink-muted">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-foreground">{value}</dd>
+      {barPct !== undefined && (
+        <div className="metric-bar mt-2.5" aria-hidden>
+          <div
+            className={cn("metric-bar-fill", barTone === "risk" && "bg-destructive")}
+            style={{ width: `${Math.min(100, barPct)}%` }}
+          />
+        </div>
+      )}
+      {sub && <p className="stat-hint mt-1.5">{sub}</p>}
+    </div>
+  );
 }
 
 export default function ExecutiveSummaryStrip({
@@ -32,20 +63,18 @@ export default function ExecutiveSummaryStrip({
   migrationTimeY,
 }: Props) {
   return (
-    <section className="panel border-l-4 border-l-[#1B4B8C] p-6">
+    <section className="panel border-l-4 border-l-primary p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-primary">
-            Executive summary
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-primary">Executive summary</p>
           <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-ink-muted">
-            Posture at a glance for leadership — deterministic engines only; optional AI narration
-            does not change scores or exports.
+            Posture at a glance for leadership — deterministic engines only; optional AI narration does not change
+            scores or exports.
           </p>
         </div>
         <span
           className={cn(
-            "border px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+            "rounded-md border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
             urgencyStyle(moscaCategory)
           )}
         >
@@ -54,43 +83,58 @@ export default function ExecutiveSummaryStrip({
       </div>
 
       <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="border border-border bg-surface px-3 py-2">
-          <dt className="text-xs text-ink-muted">Crypto agility index</dt>
-          <dd className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">
-            {agility ? `${agility.index}` : "—"}
-            <span className="text-sm font-normal text-ink-muted"> / 100</span>
-          </dd>
-        </div>
-        <div className="border border-border bg-surface px-3 py-2">
-          <dt className="text-xs text-ink-muted">Shor-exposed artefacts</dt>
-          <dd className="mt-0.5 text-2xl font-semibold tabular-nums text-[#B3261E]">
-            {shorCount}
-          </dd>
-        </div>
-        <div className="border border-border bg-surface px-3 py-2">
-          <dt className="text-xs text-ink-muted">Critical + high</dt>
-          <dd className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">
-            {criticalCount}
-            <span className="text-ink-muted"> + </span>
-            {highCount}
-          </dd>
-        </div>
-        <div className="border border-border bg-surface px-3 py-2">
-          <dt className="text-xs text-ink-muted">Mosca X + Y</dt>
-          <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-            {dataLifetimeX ?? "—"}y + {migrationTimeY ?? "—"}y
-          </dd>
-        </div>
-        <div className="border border-border bg-surface px-3 py-2">
-          <dt className="text-xs text-ink-muted">Shor share of inventory</dt>
-          <dd className="mt-0.5 text-2xl font-semibold tabular-nums text-foreground">
-            {agility ? `${agility.shorExposurePct}%` : "—"}
-          </dd>
-        </div>
+        <MetricCell
+          label="Crypto agility index"
+          value={
+            agility ? (
+              <>
+                {agility.index}
+                <span className="text-sm font-normal text-ink-muted"> / 100</span>
+              </>
+            ) : (
+              "—"
+            )
+          }
+          sub="Higher = less quantum + classical hygiene exposure"
+          barPct={agility?.index}
+        />
+        <MetricCell
+          label="Shor-exposed artefacts"
+          value={shorCount}
+          sub="Public-key harvest-now-decrypt-later set"
+          barPct={agility?.shorExposurePct}
+          barTone="risk"
+        />
+        <MetricCell
+          label="Critical + high"
+          value={
+            <>
+              {criticalCount}
+              <span className="text-ink-muted"> + </span>
+              {highCount}
+            </>
+          }
+          sub="Risk band counts from deterministic scoring"
+        />
+        <MetricCell
+          label="Mosca X + Y"
+          value={
+            <span className="text-lg">
+              {dataLifetimeX ?? "—"}y + {migrationTimeY ?? "—"}y
+            </span>
+          }
+          sub="Data lifetime (X) + migration horizon (Y)"
+        />
+        <MetricCell
+          label="PQC-safe share"
+          value={agility ? `${agility.pqcSafePct}%` : "—"}
+          sub="Artefacts with no quantum break class"
+          barPct={agility?.pqcSafePct}
+        />
       </dl>
 
       {waveOne.length > 0 && (
-        <div className="mt-5">
+        <div className="mt-5 border-t border-border/80 pt-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
             Migration wave 1 (highest urgency)
           </p>

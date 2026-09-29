@@ -255,7 +255,7 @@ export default function LoginPage() {
                     className="mt-1.5 transition-shadow duration-300"
                   />
                 </div>
-                {error && <p className="text-sm text-[#fca5a5]">{error}</p>}
+                {error && <p className="text-sm text-destructive">{error}</p>}
                 <MagneticButton className="w-full">
                   <ShimmerCta className="w-full">
                     <Button className="w-full" type="submit" disabled={loading}>

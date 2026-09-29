@@ -186,9 +186,9 @@ export function Counter({ value, className, duration = 1.6 }: { value: number; c
 
 export function RiskBadge({ risk }: { risk: "high" | "medium" | "low" }) {
   const styles = {
-    high: "border-[color:var(--intel-red)]/40 bg-[color:var(--intel-red)]/10 text-[#fca5a5]",
-    medium: "border-[color:var(--intel-amber)]/40 bg-[color:var(--intel-amber)]/10 text-[#fcd34d]",
-    low: "border-[color:var(--intel-green)]/30 bg-[color:var(--intel-green)]/10 text-[#6ee7b7]",
+    high: "border-[color:var(--intel-red)]/35 bg-[color:var(--intel-red)]/8 text-[color:var(--intel-red)]",
+    medium: "border-[color:var(--intel-amber)]/40 bg-[color:var(--intel-amber)]/10 text-[color:var(--intel-amber)]",
+    low: "border-[color:var(--intel-green)]/35 bg-[color:var(--intel-green)]/10 text-[color:var(--intel-green)]",
   }[risk];
   return (
     <span className={cn("rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] uppercase", styles)}>

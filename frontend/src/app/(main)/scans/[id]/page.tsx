@@ -503,13 +503,33 @@ function ScanDetailPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Status" value={scan.status} />
-        <StatCard label="Progress" value={`${progress}%`} />
-        <StatCard label="Artefacts" value={scan.total_artefacts ?? 0} />
-        <StatCard label="Critical" value={scan.critical_risk_count ?? 0} dot="critical" />
-        <StatCard label="High" value={scan.high_risk_count ?? 0} dot="high" />
+        <StatCard label="Status" value={scan.status} hint="Pipeline state for this run" />
+        <StatCard label="Progress" value={`${progress}%`} progress={progress} hint="Files processed vs total" />
+        <StatCard label="Artefacts" value={scan.total_artefacts ?? 0} hint="Discovered crypto assets" />
+        <StatCard label="Critical" value={scan.critical_risk_count ?? 0} dot="critical" hint="Highest risk band" />
+        <StatCard label="High" value={scan.high_risk_count ?? 0} dot="high" hint="Elevated risk band" />
       </div>
-      {scan.status === "completed" && summary && (
+      {scan.status === "completed" && summary && agility && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Shor-vulnerable"
+            value={summary.shor_vulnerable_count ?? 0}
+            dot="critical"
+            progress={agility.shorExposurePct}
+            hint="Share of inventory · public-key exposure"
+          />
+          <StatCard
+            label="Classical hygiene"
+            value={summary.classical_hygiene_count ?? 0}
+            dot="high"
+            progress={agility.classicalHygienePct}
+            hint="Deprecated or weak classical algorithms"
+          />
+          <StatCard label="HSM / cloud KMS" value={summary.hsm_cloud_count ?? 0} hint="Managed key surfaces" />
+          <StatCard label="Crypto libraries" value={summary.library_count ?? 0} hint="Linked crypto dependencies" />
+        </div>
+      )}
+      {scan.status === "completed" && summary && !agility && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Shor-vulnerable" value={summary.shor_vulnerable_count ?? 0} dot="critical" />
           <StatCard label="Classical hygiene" value={summary.classical_hygiene_count ?? 0} dot="high" />

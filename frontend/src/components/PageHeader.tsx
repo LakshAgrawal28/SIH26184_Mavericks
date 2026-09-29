@@ -18,7 +18,7 @@ export default function PageHeader({ title, description, breadcrumb, actions, cl
             {breadcrumb.join(" · ")}
           </p>
         )}
-        <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{title}</h1>
+        <h1 className="text-display text-xl font-medium tracking-tight text-foreground sm:text-2xl">{title}</h1>
         {description && (
           <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{description}</p>
         )}

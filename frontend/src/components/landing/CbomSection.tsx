@@ -105,12 +105,12 @@ function CbomNode({ data }: NodeProps<Node<{ visible: boolean }>>) {
           : { opacity: 0, scale: 0.94, filter: "blur(8px)" }
       }
       transition={{ duration: 0.7, ease: EASE }}
-      className="intel-glass w-[300px] overflow-hidden shadow-[0_0_60px_rgba(56,189,248,0.15)]"
+      className="intel-glass w-[300px] overflow-hidden shadow-[var(--shadow-elevated)]"
     >
       <Handle type="target" position={Position.Left} style={handleStyle} />
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <p className="font-mono text-[10px] tracking-[0.16em] text-primary uppercase">CycloneDX 1.6 · CBOM</p>
-        <span className="rounded-full border border-[color:var(--intel-red)]/40 bg-[color:var(--intel-red)]/10 px-2 py-0.5 font-mono text-[10px] text-[#fca5a5]">
+        <span className="rounded-full border border-[color:var(--intel-red)]/35 bg-[color:var(--intel-red)]/8 px-2 py-0.5 font-mono text-[10px] text-[color:var(--intel-red)]">
           RISK: {CBOM_ENTRY.risk}
         </span>
       </div>

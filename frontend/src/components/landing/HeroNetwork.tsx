@@ -16,14 +16,14 @@ type NetNode = {
 type NetEdge = { a: number; b: number; drawAt: number };
 
 const KIND_COLOR: Record<NetNode["kind"], string> = {
-  core: "125,211,252",
-  algorithm: "56,189,248",
-  key: "96,165,250",
-  certificate: "147,197,253",
-  protocol: "34,211,238",
-  library: "129,140,248",
-  cloud: "186,230,253",
-  hsm: "245,165,36",
+  core: "13,59,102",
+  algorithm: "26,95,138",
+  key: "45,106,143",
+  certificate: "74,124,155",
+  protocol: "13,59,102",
+  library: "90,108,125",
+  cloud: "140,158,175",
+  hsm: "166,107,18",
 };
 
 const LABELS: { kind: ArtefactKind; label: string }[] = [

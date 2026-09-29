@@ -68,7 +68,7 @@ export function MoscaSection() {
               </p>
               <p className="mt-6 inline-flex rounded-lg border border-border bg-white/[0.03] px-4 py-2 font-mono text-sm text-foreground">
                 X + Y &gt; Z <span className="mx-2 text-ink-muted">⇒</span>
-                <span className="text-[#fca5a5]">exposure</span>
+                <span className="text-destructive">exposure</span>
               </p>
               <div className="mt-6">
                 <SampleTag />
@@ -83,7 +83,7 @@ export function MoscaSection() {
                     <stop offset="1" stopColor="#3b82f6" stopOpacity="0.85" />
                   </linearGradient>
                   <linearGradient id="mosca-x" x1="0" x2="1">
-                    <stop offset="0" stopColor="#38bdf8" stopOpacity="0.55" />
+                    <stop offset="0" stopColor="#0d3b66" stopOpacity="0.35" />
                     <stop offset="1" stopColor="#7dd3fc" stopOpacity="0.9" />
                   </linearGradient>
                   <pattern id="mosca-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -161,7 +161,7 @@ export function MoscaSection() {
                         y={y0 + 14}
                         textAnchor="end"
                         className={`font-mono text-[12px] tracking-[0.14em] ${
-                          !exposed ? "fill-[#6ee7b7]" : shor ? "fill-[#fca5a5]" : "fill-[#fcd34d]"
+                          !exposed ? "fill-[#1B7A3D]" : shor ? "fill-[#c41e1e]" : "fill-[#a66b12]"
                         }`}
                       >
                         {!exposed

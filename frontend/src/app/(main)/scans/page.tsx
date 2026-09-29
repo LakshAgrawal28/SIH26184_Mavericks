@@ -109,10 +109,10 @@ export default function ScansPage() {
                     <td className="px-5 py-3.5 font-mono tabular-nums text-ink-muted">
                       {s.total_artefacts}
                     </td>
-                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#B3261E]">
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-destructive">
                       {s.critical_risk_count}
                     </td>
-                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#B8781F]">
+                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#a66b12]">
                       {s.high_risk_count}
                     </td>
                     <td className="px-5 py-3.5 text-ink-muted">
@@ -123,7 +123,7 @@ export default function ScansPage() {
                     <td className="px-5 py-3.5 text-right">
                       <Link
                         href={`/scans/${s.scan_id}`}
-                        className="text-sm font-medium text-[#1B4B8C] hover:underline"
+                        className="text-sm font-medium text-primary hover:underline"
                       >
                         View
                       </Link>

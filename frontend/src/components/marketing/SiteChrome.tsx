@@ -44,7 +44,7 @@ export function SiteHeader({ className }: { className?: string }) {
             <a
               key={s.href}
               href={s.href}
-              className="font-mono text-[11px] tracking-[0.08em] text-ink-muted uppercase transition-colors hover:text-foreground"
+              className="text-[12px] font-medium tracking-tight text-ink-muted transition-colors hover:text-foreground"
             >
               <span className="text-primary/70">{s.n}</span> {s.label}
             </a>

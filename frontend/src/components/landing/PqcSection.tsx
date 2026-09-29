@@ -78,7 +78,7 @@ export function PqcSection() {
                 transition={{ duration: 0.7, ease: EASE }}
                 className={cn(
                   "intel-glass w-full max-w-md overflow-hidden px-6 py-5 text-center transition-[border-color,box-shadow] duration-700",
-                  exposed && "border-[color:var(--intel-red)]/45 shadow-[0_0_60px_rgba(239,68,68,0.18)]"
+                  exposed && "border-[color:var(--intel-red)]/40 shadow-[var(--shadow-elevated)]"
                 )}
               >
                 <motion.p layout="position" className="intel-label text-[10px]">
@@ -96,7 +96,7 @@ export function PqcSection() {
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.6, ease: EASE }}
                     >
-                      <p className="mt-4 rounded-md border border-[color:var(--intel-red)]/40 bg-[color:var(--intel-red)]/10 py-2 font-mono text-xs tracking-[0.18em] text-[#fca5a5]">
+                      <p className="mt-4 rounded-md border border-[color:var(--intel-red)]/35 bg-[color:var(--intel-red)]/8 py-2 font-mono text-xs tracking-[0.18em] text-[color:var(--intel-red)]">
                         ⚠ HIGH QUANTUM EXPOSURE
                       </p>
                       <p className="mt-3 font-mono text-[11px] text-ink-muted">

@@ -33,7 +33,7 @@ function GraphPoster() {
           y1={pos[a][1]}
           x2={pos[b][0]}
           y2={pos[b][1]}
-          stroke="rgba(125,211,252,0.5)"
+          stroke="rgba(13,59,102,0.35)"
           strokeWidth="0.25"
           vectorEffect="non-scaling-stroke"
         />
@@ -44,7 +44,7 @@ function GraphPoster() {
           cx={pos[n.id][0]}
           cy={pos[n.id][1]}
           r="0.9"
-          fill={n.quantumVulnerable ? "#f87171" : "#38bdf8"}
+          fill={n.quantumVulnerable ? "#c41e1e" : "#1a5f8a"}
         />
       ))}
     </svg>
@@ -103,7 +103,7 @@ export function IntelligenceGraphSection() {
               </dl>
               <p
                 className={`mt-3 font-mono text-[10px] tracking-[0.14em] uppercase ${
-                  hovered.quantumVulnerable ? "text-[#fca5a5]" : "text-[#6ee7b7]"
+                  hovered.quantumVulnerable ? "text-destructive" : "text-[#1B7A3D]"
                 }`}
               >
                 {hovered.quantumVulnerable ? "⚠ Quantum-vulnerable" : "Quantum-resistant at current size"}
