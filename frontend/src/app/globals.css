@@ -213,6 +213,74 @@
   }
 }
 
+@keyframes ecdat-hero-orb-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-2%, 3%) scale(1.04);
+  }
+}
+
+@keyframes ecdat-hero-orb-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(3%, -2%) scale(1.03);
+  }
+}
+
+@keyframes ecdat-hero-scan {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.35;
+  }
+  85% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(120vh);
+    opacity: 0;
+  }
+}
+
+@keyframes ecdat-proof-bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.ecdat-hero-orb-a {
+  animation: ecdat-hero-orb-drift-a 22s ease-in-out infinite;
+}
+
+.ecdat-hero-orb-b {
+  animation: ecdat-hero-orb-drift-b 26s ease-in-out infinite;
+}
+
+.ecdat-hero-scanline {
+  animation: ecdat-hero-scan 14s linear infinite;
+}
+
+.ecdat-proof-bar {
+  transform-origin: left;
+  animation: ecdat-proof-bar-fill 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-play-state: paused;
+}
+
+.ecdat-proof-bar.is-visible {
+  animation-play-state: running;
+}
+
 .motion-enter {
   animation: ecdat-fade-up 0.65s var(--ease-out-expo) both;
 }
@@ -243,8 +311,16 @@
   .motion-enter-delay-2,
   .motion-enter-delay-3,
   .motion-enter-delay-4,
-  .page-transition {
+  .page-transition,
+  .ecdat-hero-orb-a,
+  .ecdat-hero-orb-b,
+  .ecdat-hero-scanline,
+  .ecdat-proof-bar {
     animation: none;
+  }
+
+  .ecdat-proof-bar {
+    transform: scaleX(1);
   }
 
   html {

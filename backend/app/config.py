@@ -46,5 +46,18 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
 
+    @property
+    def sqlalchemy_database_url(self) -> str:
+        """SQLAlchemy URL (psycopg2 driver + SSL for managed Postgres)."""
+        url = self.database_url.strip()
+        if url.startswith("postgres://"):
+            url = "postgresql://" + url[len("postgres://") :]
+        if url.startswith("postgresql://") and "+psycopg2" not in url:
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        if url.startswith("postgresql+psycopg2://") and "sslmode=" not in url:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}sslmode=require"
+        return url
+
 
 settings = Settings()

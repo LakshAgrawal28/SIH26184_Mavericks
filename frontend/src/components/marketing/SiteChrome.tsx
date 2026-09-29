@@ -25,11 +25,14 @@ export function SiteHeader({ className }: { className?: string }) {
           </div>
         </Link>
         <nav className="hidden items-center gap-8 text-[13px] md:flex">
+          <a href="/#impact" className="text-ink-muted transition-colors hover:text-foreground">
+            NTRO fit
+          </a>
           <a href="/#workflow" className="text-ink-muted transition-colors hover:text-foreground">
-            Workflow
+            Pipeline
           </a>
           <a href="/#capabilities" className="text-ink-muted transition-colors hover:text-foreground">
-            Capabilities
+            Proof
           </a>
           <Link href="/login" className="text-ink-muted transition-colors hover:text-primary">
             Sign in
@@ -48,8 +51,8 @@ export function SiteFooter() {
     <footer className="border-t border-border/80 bg-surface/50">
       <div className="mx-auto flex max-w-[1160px] flex-col gap-4 px-6 py-12 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-xs leading-relaxed text-ink-muted">
-          Enterprise Cryptographic Discovery &amp; Analysis Tool — evidence-backed inventory, quantum risk,
-          and CycloneDX CBOM export.
+          <span className="font-medium text-foreground">Team Mavericks</span> · SIH 2026 PS 26164 · ECDAT —
+          Enterprise Cryptographic Discovery &amp; Analysis Tool.
         </p>
         <div className="flex flex-wrap gap-6 text-xs">
           <Link href="/login" className="text-ink-muted transition-colors hover:text-primary">

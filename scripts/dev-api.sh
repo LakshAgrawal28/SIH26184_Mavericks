@@ -10,7 +10,9 @@ if [ -f "$ROOT/.env" ]; then
   set +a
 fi
 export PYTHONPATH="$ROOT/backend:$ROOT"
-export DATABASE_URL="sqlite:///$ROOT/backend/ecdat_dev.db"
+if [ -z "${DATABASE_URL:-}" ]; then
+  export DATABASE_URL="sqlite:///$ROOT/backend/ecdat_dev.db"
+fi
 export SYNC_SCAN=true
 export REDIS_URL=redis://localhost:6379/0
 export JWT_SECRET=dev-secret

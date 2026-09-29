@@ -12,6 +12,12 @@ import { Label } from "@/components/ui/label";
 
 type ApiStatus = "checking" | "online" | "offline";
 
+const DEMO_ACCOUNT = {
+  email: "admin@example.com",
+  password: "admin123",
+  label: "Demo operator",
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -41,6 +47,12 @@ export default function LoginPage() {
       cancelled = true;
     };
   }, []);
+
+  function applyDemoAccount() {
+    setEmail(DEMO_ACCOUNT.email);
+    setPassword(DEMO_ACCOUNT.password);
+    setError("");
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -147,6 +159,33 @@ export default function LoginPage() {
               Free-tier Render spins down after idle. First request can take up to 60 seconds.
             </p>
           )}
+
+          <div className="mt-5 rounded-lg border border-border/80 bg-surface/80 px-4 py-3.5">
+            <p className="text-xs font-medium text-foreground">{DEMO_ACCOUNT.label}</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+              For local and demo deployments when the default admin is enabled.
+            </p>
+            <dl className="mt-3 space-y-1.5 font-mono text-[11px] text-ink-muted">
+              <div className="flex justify-between gap-3">
+                <dt>Email</dt>
+                <dd className="text-foreground">{DEMO_ACCOUNT.email}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt>Password</dt>
+                <dd className="text-foreground">{DEMO_ACCOUNT.password}</dd>
+              </div>
+            </dl>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full"
+              onClick={applyDemoAccount}
+              disabled={loading}
+            >
+              Fill demo credentials
+            </Button>
+          </div>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>

@@ -22,8 +22,6 @@ _PATCHES: list[tuple[str, str, str]] = [
 
 
 def ensure_schema_patches(engine: Engine) -> None:
-    if engine.dialect.name != "sqlite":
-        return
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
     with engine.begin() as conn:
