@@ -11,16 +11,16 @@ type PageHeaderProps = {
 
 export default function PageHeader({ title, description, breadcrumb, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn("mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", className)}>
+    <div className={cn("mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", className)}>
       <div className="max-w-[68ch]">
         {breadcrumb && breadcrumb.length > 0 && (
           <p className="mb-2 text-xs font-medium tracking-wide text-ink-muted uppercase">
             {breadcrumb.join(" · ")}
           </p>
         )}
-        <h1 className="text-display text-2xl text-foreground md:text-[1.75rem]">{title}</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{title}</h1>
         {description && (
-          <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">{description}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

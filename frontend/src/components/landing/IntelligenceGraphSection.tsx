@@ -58,7 +58,7 @@ export function IntelligenceGraphSection() {
   const [hovered, setHovered] = useState<HoveredNode | null>(null);
 
   return (
-    <section id="graph" className="relative border-t border-border py-28 sm:py-36">
+    <section id="graph" className="landing-section pb-12 sm:pb-16">
       <div className="mx-auto max-w-[1280px] px-6">
         <SectionHeader
           index="06"
@@ -69,7 +69,7 @@ export function IntelligenceGraphSection() {
         />
       </div>
 
-      <div ref={ref} className="relative mx-auto mt-14 h-[560px] max-w-[1440px] overflow-hidden sm:h-[640px]">
+      <div ref={ref} className="relative mx-auto mt-8 h-[400px] max-w-[1280px] overflow-hidden sm:mt-10 sm:h-[500px] lg:h-[540px]">
         <div className="intel-grid pointer-events-none absolute inset-0 opacity-50" aria-hidden />
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(56,189,248,0.08),transparent_70%)]"

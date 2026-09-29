@@ -47,7 +47,7 @@ export function DiscoverSection() {
   const docked = DISCOVERED_ARTEFACTS.slice(0, tick >= finalTick ? DISCOVERED_ARTEFACTS.length : activeIndex);
 
   return (
-    <section id="discover" className="relative border-t border-border py-28 sm:py-36">
+    <section id="discover" className="landing-section">
       <div className="mx-auto max-w-[1280px] px-6">
         <SectionHeader
           index="03"
@@ -57,7 +57,7 @@ export function DiscoverSection() {
           sample
         />
 
-        <div ref={ref} className="mt-16 grid gap-5 lg:grid-cols-[1.1fr_1fr]">
+        <div ref={ref} className="landing-stack grid gap-4 lg:grid-cols-[1.1fr_1fr]">
           <GlowCard className="relative overflow-hidden p-6 sm:p-8">
             <div className="flex items-center justify-between">
               <p className="intel-label">Live artefact stream</p>

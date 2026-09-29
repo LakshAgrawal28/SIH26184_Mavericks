@@ -177,7 +177,7 @@ export function CbomSection() {
   }, [stage]);
 
   return (
-    <section id="cbom" className="relative border-t border-border py-28 sm:py-36">
+    <section id="cbom" className="landing-section">
       <div className="mx-auto max-w-[1280px] px-6">
         <SectionHeader
           index="04"
@@ -187,7 +187,7 @@ export function CbomSection() {
           sample
         />
 
-        <div ref={ref} className="mt-16 grid gap-5 lg:grid-cols-[240px_1fr]">
+        <div ref={ref} className="landing-stack grid gap-4 lg:grid-cols-[220px_1fr]">
           <div className="intel-glass p-5 font-mono text-[12px]">
             <p className="intel-label mb-4 text-[10px]">Repository</p>
             <ul className="space-y-1.5">

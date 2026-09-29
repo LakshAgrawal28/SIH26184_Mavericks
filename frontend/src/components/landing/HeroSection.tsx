@@ -33,7 +33,10 @@ export function HeroSection() {
   const headlineDelay = reduced ? 0 : 2.1;
 
   return (
-    <section id="hero" className="relative isolate flex min-h-[calc(100svh-60px)] flex-col overflow-hidden">
+    <section
+      id="hero"
+      className="relative isolate flex min-h-[min(calc(100svh-60px),780px)] flex-col overflow-hidden"
+    >
       <div className="intel-grid pointer-events-none absolute inset-0" aria-hidden />
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_45%,rgba(56,189,248,0.10),transparent_70%)]"
@@ -46,7 +49,7 @@ export function HeroSection() {
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-background" aria-hidden />
 
-      <div className="relative mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-6 pt-8">
+      <div className="relative mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-6 pt-5 sm:pt-6">
         <div className="flex flex-wrap items-start justify-between gap-4 font-mono text-[10px] tracking-[0.18em] text-ink-muted uppercase">
           <div className="hidden sm:block">
             <p className="text-foreground">
@@ -60,7 +63,7 @@ export function HeroSection() {
           </p>
         </div>
 
-        <div className="mt-6 min-h-[64px] font-mono text-[11px] leading-6 text-ink-muted" aria-hidden>
+        <div className="mt-4 min-h-[52px] font-mono text-[10px] leading-5 text-ink-muted sm:text-[11px]" aria-hidden>
           {BOOT_LINES.slice(0, bootStep).map((line, i) => (
             <motion.p
               key={line}
@@ -76,9 +79,9 @@ export function HeroSection() {
           ))}
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center pb-16 text-center">
-          <p className="intel-label">SIH 2026 · Problem Statement 26164 · Team Mavericks</p>
-          <h1 className="intel-heading mt-6 text-[3.4rem] sm:text-[5.5rem] lg:text-[7.5rem]">
+        <div className="flex flex-1 flex-col items-center justify-center pb-10 pt-2 text-center sm:pb-12">
+          <p className="intel-label text-[10px]">SIH 2026 · PS 26164 · Team Mavericks</p>
+          <h1 className="intel-heading mt-4 text-[2.35rem] sm:text-[3.25rem] lg:text-[4.25rem]">
             <RevealText
               text="Know your"
               immediate
@@ -94,7 +97,7 @@ export function HeroSection() {
             />
           </h1>
           <motion.p
-            className="mt-8 max-w-xl text-base text-ink-muted sm:text-lg"
+            className="mt-5 max-w-lg text-sm text-ink-muted sm:text-base"
             initial={reduced ? false : { opacity: 0, filter: "blur(8px)" }}
             animate={{ opacity: 1, filter: "blur(0px)" }}
             transition={{ duration: 0.9, delay: headlineDelay + 0.55, ease: EASE }}
@@ -103,7 +106,7 @@ export function HeroSection() {
           </motion.p>
 
           <motion.div
-            className="mt-10 flex flex-wrap items-center justify-center gap-3"
+            className="mt-7 flex flex-wrap items-center justify-center gap-2.5"
             initial={reduced ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: headlineDelay + 0.8, ease: EASE }}

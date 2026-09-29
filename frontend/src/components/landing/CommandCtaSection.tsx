@@ -15,7 +15,7 @@ export function CommandCtaSection() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_45%_45%_at_50%_50%,rgba(0,0,0,0.9),transparent_80%)]"
         aria-hidden
       />
-      <div className="relative mx-auto flex min-h-[80svh] max-w-[1280px] flex-col items-center justify-center px-6 py-32 text-center">
+      <div className="relative mx-auto flex min-h-[50vh] max-w-[1280px] flex-col items-center justify-center px-6 py-16 text-center sm:py-20">
         <BlurReveal>
           <p className="font-mono text-[11px] tracking-[0.3em] text-ink-muted uppercase">
             <span className="text-primary">08</span> // NTRO / ECDAT
@@ -24,7 +24,7 @@ export function CommandCtaSection() {
         <RevealText
           as="h2"
           text="Cryptographic visibility for the post-quantum era."
-          className="intel-heading mt-8 block max-w-4xl text-[2rem] sm:text-5xl"
+          className="intel-heading mt-5 block max-w-3xl text-[1.65rem] sm:text-3xl"
           wordClassName="intel-gradient-text"
         />
         <BlurReveal delay={0.4} className="mt-12">

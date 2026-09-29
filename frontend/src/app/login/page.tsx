@@ -143,7 +143,7 @@ export default function LoginPage() {
               <span className="text-primary">NTRO / ECDAT</span> // SIH 2026 · PS 26164
             </p>
 
-            <h1 className="intel-heading mt-5 text-[2.6rem] sm:text-[3.4rem]">
+            <h1 className="intel-heading mt-4 text-[2rem] sm:text-[2.35rem]">
               <RevealText text="Operator" immediate delay={0.1} className="block" wordClassName="intel-gradient-text" />
               <RevealText text="console." immediate delay={0.25} className="block" wordClassName="intel-accent-text" />
             </h1>

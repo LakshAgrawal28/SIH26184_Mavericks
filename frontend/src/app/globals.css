@@ -794,6 +794,67 @@
   display: none;
 }
 
+/* ------------------------------------------------------------------ */
+/* Operator console (dashboard + scans) — matches intel, tighter UI   */
+/* ------------------------------------------------------------------ */
+
+.theme-console {
+  color-scheme: dark;
+  --background: #06080d;
+  --surface: #0c1119;
+  --foreground: #e8eef6;
+  --ink-muted: #8b97a8;
+  --accent-soft: rgba(56, 189, 248, 0.12);
+  --card: rgba(12, 17, 26, 0.92);
+  --card-foreground: #e8eef6;
+  --popover: #0d131d;
+  --popover-foreground: #e8eef6;
+  --primary: #38bdf8;
+  --primary-foreground: #03101a;
+  --secondary: rgba(148, 170, 200, 0.08);
+  --secondary-foreground: #e8eef6;
+  --muted: rgba(148, 170, 200, 0.08);
+  --muted-foreground: #8b97a8;
+  --accent: rgba(56, 189, 248, 0.1);
+  --accent-foreground: #7dd3fc;
+  --destructive: #f87171;
+  --border: rgba(148, 170, 200, 0.12);
+  --input: rgba(148, 170, 200, 0.16);
+  --ring: #38bdf8;
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.theme-console .panel,
+.theme-console .panel-muted,
+.theme-console .panel-elevated,
+.theme-console .panel-interactive {
+  background: linear-gradient(180deg, rgba(18, 24, 36, 0.85), rgba(10, 14, 22, 0.9));
+  border-color: rgba(148, 170, 200, 0.12);
+  box-shadow: var(--shadow-soft);
+}
+
+.theme-console .panel-interactive:hover {
+  border-color: rgba(56, 189, 248, 0.28);
+  box-shadow: var(--shadow-elevated);
+}
+
+.theme-console .console-canvas {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(56, 189, 248, 0.06), transparent 55%),
+    var(--background);
+}
+
+@layer components {
+  .landing-section {
+    @apply relative border-t border-border py-14 sm:py-16 md:py-20;
+  }
+
+  .landing-stack {
+    @apply mt-8 sm:mt-10;
+  }
+}
+
 .theme-intel .react-flow__edge-path {
   stroke: rgba(125, 211, 252, 0.55);
 }

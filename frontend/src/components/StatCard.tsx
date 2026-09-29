@@ -11,11 +11,11 @@ export default function StatCard({ label, value, dot = "default" }: StatCardProp
   const numeric = typeof value === "number";
 
   return (
-    <div className="panel-interactive px-6 py-5">
-      <p className="text-xs font-medium tracking-wide text-ink-muted">{label}</p>
+    <div className="panel-interactive px-4 py-3.5">
+      <p className="text-[11px] font-medium tracking-wide text-ink-muted">{label}</p>
       <p
         className={cn(
-          "mt-3 text-[2rem] font-semibold tabular-nums leading-none tracking-tight text-foreground",
+          "mt-1.5 text-xl font-semibold tabular-nums leading-none tracking-tight text-foreground sm:text-2xl",
           dot === "critical" && "text-destructive",
           dot === "high" && "text-[#a66b12]"
         )}

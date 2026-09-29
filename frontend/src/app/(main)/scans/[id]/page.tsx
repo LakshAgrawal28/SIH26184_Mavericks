@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useState, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Fragment, Suspense, useEffect, useState, useCallback, useMemo } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import RiskDistribution from "@/components/RiskDistribution";
@@ -16,6 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { API_URL, apiFetch, copyText, getToken } from "@/lib/api";
 import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
 import NarrativeMarkdown from "@/components/NarrativeMarkdown";
+import ExecutiveSummaryStrip from "@/components/scan/ExecutiveSummaryStrip";
+import ScanExportCenter from "@/components/scan/ScanExportCenter";
+import { computeAgilityMetrics, migrationWaveOne } from "@/lib/scanInsights";
 import { cn } from "@/lib/utils";
 
 function quantumStyle(kind?: string) {
@@ -36,7 +39,7 @@ function quantumLabel(kind?: string) {
   return kind || "Unknown";
 }
 
-type Tab = "overview" | "inventory" | "mosca" | "recommendations" | "assistant";
+type Tab = "overview" | "inventory" | "mosca" | "recommendations" | "exports" | "assistant";
 
 function urgencyStyle(category: string) {
   if (category === "EXPIRED") return "border border-[#B3261E] text-[#B3261E]";
@@ -55,9 +58,10 @@ type DiffItem = {
   score_delta?: number;
 };
 
-export default function ScanDetailPage() {
+function ScanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
   const [scan, setScan] = useState<Scan | null>(null);
   const [summary, setSummary] = useState<ScanSummary | null>(null);
@@ -129,6 +133,20 @@ export default function ScanDetailPage() {
       .then(setAiStatus)
       .catch(() => setAiStatus({ available: false, enabled: false }));
   }, []);
+
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    if (
+      requested === "overview" ||
+      requested === "inventory" ||
+      requested === "mosca" ||
+      requested === "recommendations" ||
+      requested === "exports" ||
+      requested === "assistant"
+    ) {
+      setTab(requested);
+    }
+  }, [searchParams]);
 
   const loadCompletedData = useCallback(async () => {
     const [arts, moscaData, recData, summaryData] = await Promise.all([
@@ -362,25 +380,6 @@ export default function ScanDetailPage() {
     }
   }
 
-  async function exportCbom() {
-    try {
-      const res = await fetch(`${API_URL}/api/v1/scans/${id}/reports/cbom`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `ecdat-cbom-${id}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Export failed");
-    }
-  }
-
   const filteredArtefacts = useMemo(() => {
     return artefacts.filter((a) => {
       const q = searchTerm.toLowerCase();
@@ -448,6 +447,9 @@ export default function ScanDetailPage() {
 
   const headlineCategory = baselineClient?.category || worstClientCategory;
 
+  const agility = useMemo(() => computeAgilityMetrics(summary), [summary]);
+  const waveOne = useMemo(() => migrationWaveOne(recs), [recs]);
+
   if (!scan) {
     return (
       <div className="space-y-4">
@@ -485,8 +487,8 @@ export default function ScanDetailPage() {
                   CBOM {cbomValidation.valid ? "valid 1.6" : "invalid"}
                 </span>
               )}
-              <Button type="button" variant="outline" onClick={exportCbom}>
-                Export CBOM
+              <Button type="button" variant="outline" onClick={() => setTab("exports")}>
+                Exports
               </Button>
             </div>
           ) : undefined
@@ -516,6 +518,21 @@ export default function ScanDetailPage() {
         </div>
       )}
 
+      {scan.status === "completed" && summary && (
+        <div className="mt-4">
+          <ExecutiveSummaryStrip
+            moscaCategory={headlineCategory}
+            agility={agility}
+            shorCount={summary.shor_vulnerable_count ?? 0}
+            criticalCount={summary.critical_risk_count}
+            highCount={summary.high_risk_count}
+            waveOne={waveOne}
+            dataLifetimeX={scan.data_lifetime_x ?? moscaX}
+            migrationTimeY={scan.migration_time_y ?? moscaY}
+          />
+        </div>
+      )}
+
       {scan.status !== "completed" && scan.status !== "failed" && (
         <div className="relative mt-4 h-px bg-border">
           <div
@@ -531,6 +548,7 @@ export default function ScanDetailPage() {
           <TabsTrigger value="inventory" className="px-4 py-2.5">Artefacts</TabsTrigger>
           <TabsTrigger value="mosca" className="px-4 py-2.5">Mosca</TabsTrigger>
           <TabsTrigger value="recommendations" className="px-4 py-2.5">Recommendations</TabsTrigger>
+          <TabsTrigger value="exports" className="px-4 py-2.5">Exports</TabsTrigger>
           <TabsTrigger value="assistant" className="px-4 py-2.5">Assistant</TabsTrigger>
         </TabsList>
 
@@ -557,6 +575,12 @@ export default function ScanDetailPage() {
                     {scan.created_at ? new Date(scan.created_at).toLocaleString() : "—"}
                   </dd>
                 </div>
+                {summary?.coverage_note && (
+                  <div>
+                    <dt className="text-ink-muted">Coverage</dt>
+                    <dd className="mt-1 text-sm font-medium text-foreground">{summary.coverage_note}</dd>
+                  </div>
+                )}
                 {summary?.layers_present && summary.layers_present.length > 0 && (
                   <div>
                     <dt className="text-ink-muted">Detector layers</dt>
@@ -1101,6 +1125,17 @@ export default function ScanDetailPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="exports">
+          <ScanExportCenter
+            scanId={id}
+            cbomValid={cbomValidation?.valid}
+            cbomErrorCount={cbomValidation?.error_count}
+          />
+          <p className="mt-4 text-sm text-ink-muted">
+            Share the CBOM with GRC or Dependency-Track; use the PDF for leadership briefings.
+          </p>
+        </TabsContent>
+
         <TabsContent value="assistant">
           <div className="border border-border bg-surface p-4 text-sm text-foreground">
             <p className="font-medium">AI-generated narration (Groq)</p>
@@ -1216,5 +1251,20 @@ export default function ScanDetailPage() {
         </TabsContent>
       </Tabs>
     </>
+  );
+}
+
+export default function ScanDetailPageWrapper() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      }
+    >
+      <ScanDetailPage />
+    </Suspense>
   );
 }

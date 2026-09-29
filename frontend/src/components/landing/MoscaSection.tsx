@@ -22,7 +22,7 @@ export function MoscaSection() {
       scrollTrigger: {
         trigger: "[data-mosca-pin]",
         start: "top top",
-        end: "+=1800",
+        end: "+=1100",
         scrub: 0.7,
         pin: true,
         anticipatePin: 1,
@@ -42,15 +42,15 @@ export function MoscaSection() {
   });
 
   return (
-    <section id="risk" ref={root} className="relative border-t border-border">
-      <div data-mosca-pin className="flex min-h-[100svh] items-center py-20">
+    <section id="risk" ref={root} className="landing-section !py-10 sm:!py-12">
+      <div data-mosca-pin className="flex min-h-0 items-center py-12 sm:py-14">
         <div className="mx-auto w-full max-w-[1280px] px-6">
           <div className="grid gap-10 lg:grid-cols-[0.8fr_1.6fr] lg:items-center">
             <div>
               <p className="intel-label">
                 <span className="text-primary">05</span> // Quantum risk engine
               </p>
-              <h2 className="intel-heading intel-gradient-text mt-5 text-[2.3rem] sm:text-5xl">
+              <h2 className="intel-heading intel-gradient-text mt-3 text-[1.65rem] sm:text-3xl">
                 When does your data become readable?
               </h2>
               <p className="mt-6 text-base leading-relaxed text-ink-muted">

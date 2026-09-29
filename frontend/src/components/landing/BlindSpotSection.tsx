@@ -39,12 +39,12 @@ export function BlindSpotSection() {
   });
 
   return (
-    <section id="blind-spot" ref={root} className="relative border-t border-border py-28 sm:py-36">
+    <section id="blind-spot" ref={root} className="landing-section">
       <div className="mx-auto max-w-[1280px] px-6">
         <p className="intel-label">
           <span className="text-primary">02</span> // The cryptographic blind spot
         </p>
-        <h2 className="intel-heading mt-6 text-[2.6rem] sm:text-6xl lg:text-[5.2rem]">
+        <h2 className="intel-heading mt-4 text-[1.85rem] leading-[1.05] sm:text-4xl lg:text-[2.5rem]">
           <RevealText text="You can't protect" className="block" wordClassName="intel-gradient-text" />
           <RevealText text="what you can't see." delay={0.25} className="block" wordClassName="intel-accent-text" />
         </h2>
@@ -55,7 +55,7 @@ export function BlindSpotSection() {
           </p>
         </BlurReveal>
 
-        <div data-scan-grid className="mt-16">
+        <div data-scan-grid className="landing-stack">
           <div className="mb-4 flex justify-end">
             <SampleTag />
           </div>

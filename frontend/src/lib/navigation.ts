@@ -2,8 +2,10 @@ import type { ComponentType, SVGProps } from "react";
 import {
   IconArtefacts,
   IconDashboard,
+  IconExecutive,
   IconScans,
   IconSettings,
+  IconTrust,
 } from "@/components/icons/NavIcons";
 
 export type NavItem = {
@@ -31,6 +33,18 @@ export const mainNav: NavItem[] = [
     label: "Artefacts",
     icon: IconArtefacts,
     match: (p) => p.startsWith("/artefacts"),
+  },
+  {
+    href: "/executive",
+    label: "Executive",
+    icon: IconExecutive,
+    match: (p) => p.startsWith("/executive"),
+  },
+  {
+    href: "/trust",
+    label: "Trust",
+    icon: IconTrust,
+    match: (p) => p.startsWith("/trust"),
   },
   {
     href: "/settings",

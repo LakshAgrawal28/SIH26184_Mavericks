@@ -34,7 +34,7 @@ export function PqcSection() {
   const exposed = step >= 1;
 
   return (
-    <section id="pqc" className="relative border-t border-border py-28 sm:py-36">
+    <section id="pqc" className="landing-section">
       <div className="mx-auto max-w-[1280px] px-6">
         <SectionHeader
           index="07"
@@ -43,8 +43,8 @@ export function PqcSection() {
           body="ECDAT maps each exposed asset to NIST post-quantum and hybrid candidates, weighing security level, latency and cost for your team to review. It supports the decision — it does not rewrite your cryptography for you."
         />
 
-        <div ref={ref} className="mt-16">
-          <ol className="mb-10 flex flex-wrap items-center gap-2">
+        <div ref={ref} className="landing-stack">
+          <ol className="mb-6 flex flex-wrap items-center gap-2">
             {STEPS.map((label, i) => (
               <li key={label} className="flex items-center gap-2">
                 <button

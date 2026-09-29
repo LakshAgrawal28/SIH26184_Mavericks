@@ -43,6 +43,24 @@ export function IconArtefacts(props: IconProps) {
   );
 }
 
+export function IconTrust(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={20} height={20} aria-hidden {...props}>
+      <path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z" {...stroke} />
+      <path d="M9 12l2 2 4-4" {...stroke} />
+    </svg>
+  );
+}
+
+export function IconExecutive(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={20} height={20} aria-hidden {...props}>
+      <path d="M4 19V5h16v14H4z" {...stroke} />
+      <path d="M8 15h8M8 11h5M8 7h3" {...stroke} />
+    </svg>
+  );
+}
+
 export function IconSettings(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" width={20} height={20} aria-hidden {...props}>

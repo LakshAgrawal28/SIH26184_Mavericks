@@ -145,12 +145,12 @@ export function SectionHeader({
       <RevealText
         as="h2"
         text={title}
-        className="intel-heading mt-5 block text-[2.3rem] sm:text-5xl lg:text-[3.6rem]"
+        className="intel-heading mt-3 block text-[1.75rem] leading-[1.05] sm:text-3xl lg:text-[2.35rem]"
         wordClassName="intel-gradient-text"
       />
       {body && (
         <BlurReveal delay={0.15}>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-ink-muted sm:text-[17px]">{body}</p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-[15px]">{body}</p>
         </BlurReveal>
       )}
     </div>

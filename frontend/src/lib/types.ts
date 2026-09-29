@@ -46,6 +46,10 @@ export type ScanSummary = {
   library_count?: number;
   suggested_data_lifetime_x?: number | null;
   keep_or_inspect_count?: number;
+  coverage_note?: string | null;
+  agility_index?: number;
+  shor_exposure_pct?: number;
+  pqc_safe_pct?: number;
 };
 
 export type ArtefactRisk = {

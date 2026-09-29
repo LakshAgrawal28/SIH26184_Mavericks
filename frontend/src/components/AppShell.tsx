@@ -18,12 +18,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="console-canvas flex min-h-screen">
       <aside
-        className="hidden w-[260px] shrink-0 flex-col border-r border-border/80 bg-card/80 backdrop-blur-md md:flex"
+        className="hidden w-[248px] shrink-0 flex-col border-r border-border bg-card/95 backdrop-blur-xl md:flex"
         aria-label="Primary"
       >
-        <div className="px-5 py-6">
+        <div className="border-b border-border/80 px-4 py-5">
           <Link
             href="/dashboard"
             className="group flex items-center gap-3 rounded-lg transition-opacity duration-200 hover:opacity-90"
@@ -73,7 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </header>
 
-        <main className="mx-auto w-full max-w-[1140px] flex-1 px-4 py-8 pb-24 md:px-10 md:pb-10">
+        <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-5 pb-20 md:px-8 md:py-6 md:pb-8">
           <PageMotion>{children}</PageMotion>
         </main>
 
