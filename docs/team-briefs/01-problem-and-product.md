@@ -11,7 +11,7 @@
 - **Event:** Smart India Hackathon 2026  
 - **Problem ID:** 26164  
 - **Org:** National Technical Research Organisation (NTRO)  
-- **Team:** Mavericks  
+- **Team:** Maverics  
 - **Product:** ECDAT — Enterprise Cryptographic Discovery & Analysis Tool  
 
 NTRO needs an **on-premise** way to find cryptography across code, configs, certificates, and binaries, then plan a **post-quantum** migration. Cloud-only SaaS is a poor fit for classified / air-gapped work.

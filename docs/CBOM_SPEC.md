@@ -31,7 +31,7 @@ ECDAT exports CBOM files strictly compliant with **CycloneDX 1.6+ (ECMA-424)** s
           "type": "application",
           "name": "ECDAT Cryptographic Scanner",
           "version": "1.0.0",
-          "vendor": "NTRO / Team Mavericks"
+          "vendor": "NTRO / Team Maverics"
         }
       ]
     },

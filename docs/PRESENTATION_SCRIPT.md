@@ -33,7 +33,7 @@
 ### 🗣️ Spoken Script Details
 
 #### Slide 1: Title & Introduction (Speaker 1 — 15s)
-> *"Respected Judges, good morning. We are Team Mavericks presenting **ECDAT**—the Enterprise Cryptographic Discovery and Analysis Tool, built for Problem Statement 26164 by the National Technical Research Organisation (NTRO)."*
+> *"Respected Judges, good morning. We are Team Maverics presenting **ECDAT**—the Enterprise Cryptographic Discovery and Analysis Tool, built for Problem Statement 26164 by the National Technical Research Organisation (NTRO)."*
 
 #### Slide 2: Problem Understanding (Speaker 1 — 35s)
 > *"Organizations worldwide face an urgent crisis: Post-Quantum Cryptography migration. Quantum computers running Shor’s algorithm will break RSA, ECDH, and ECDSA—the bedrock of modern encryption. Furthermore, under Harvest Now Decrypt Later, adversaries are capturing sensitive government data today to decrypt later. But before NTRO or any enterprise can migrate to quantum-safe algorithms, they face one roadblock: **They don't know where cryptography exists in their systems.** You cannot migrate what you cannot see."*

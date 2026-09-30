@@ -1,7 +1,7 @@
 # ECDAT — six reading briefs for the team
 
 **Project:** Enterprise Cryptographic Discovery & Analysis Tool (ECDAT)  
-**SIH 2026 · PS 26164 · NTRO · Team Mavericks**
+**SIH 2026 · PS 26164 · NTRO · Team Maverics**
 
 Give **one numbered file** to each person. Each brief is self-contained (~8–12 minutes). Together they cover the whole product.
 

@@ -17,7 +17,7 @@
 
 <br/>
 
-**Team Mavericks** · SIH 2026 · Theme: *Blockchain & Cybersecurity*
+**Team Maverics** · SIH 2026 · Theme: *Blockchain & Cybersecurity*
 
 [Live Demo](https://ecdat-zeta.vercel.app) · [API Docs](https://ecdat-api-iqgx.onrender.com/docs) · [Architecture](docs/ARCHITECTURE.md) · [Judge Q&A](docs/WINNING_GUIDE.md)
 
@@ -724,7 +724,7 @@ vercel deploy --prod
 
 <div align="center">
 
-### Team Mavericks
+### Team Maverics
 
 **Smart India Hackathon 2026**
 

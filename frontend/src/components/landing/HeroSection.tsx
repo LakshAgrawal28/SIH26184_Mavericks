@@ -80,7 +80,7 @@ export function HeroSection() {
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center pb-10 pt-2 text-center sm:pb-12">
-          <p className="intel-label text-[10px]">SIH 2026 · PS 26164 · Team Mavericks</p>
+          <p className="intel-label text-[10px]">SIH 2026 · PS 26164 · Team Maverics</p>
           <h1 className="intel-heading mt-4 text-[2.15rem] sm:text-[2.85rem] lg:text-[3.5rem]">
             <RevealText
               text="Know your"

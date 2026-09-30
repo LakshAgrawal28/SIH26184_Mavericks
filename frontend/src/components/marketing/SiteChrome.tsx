@@ -81,7 +81,7 @@ export function SiteFooter() {
     <footer className="border-t border-border bg-background">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-6 py-10 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md font-mono text-[11px] leading-relaxed tracking-[0.04em] text-ink-muted">
-          <span className="text-foreground">Team Mavericks</span> · SIH 2026 PS 26164 · ECDAT — Enterprise
+          <span className="text-foreground">Team Maverics</span> · SIH 2026 PS 26164 · ECDAT — Enterprise
           Cryptographic Discovery &amp; Analysis Tool
         </p>
         <div className="flex flex-wrap gap-6 font-mono text-[11px] tracking-[0.08em] uppercase">
