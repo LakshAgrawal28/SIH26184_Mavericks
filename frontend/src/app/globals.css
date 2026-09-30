@@ -1033,7 +1033,21 @@
   border-radius: inherit;
   background: var(--primary);
   transform-origin: left;
-  transition: transform 0.6s var(--ease-out-expo);
+  transition: width 0.55s var(--ease-out-expo);
+}
+
+.metric-bar-indeterminate .metric-bar-fill {
+  width: 38%;
+  animation: scan-progress-indeterminate 1.35s ease-in-out infinite;
+}
+
+@keyframes scan-progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
 }
 
 @layer components {
@@ -1051,6 +1065,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .metric-bar-indeterminate .metric-bar-fill {
+    animation: none;
+    width: 50%;
+  }
+
   .intel-scanline,
   .intel-status-dot {
     animation: none;

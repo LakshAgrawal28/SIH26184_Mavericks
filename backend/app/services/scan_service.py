@@ -18,7 +18,6 @@ from scanner.detectors.pipeline import (
     coverage_stats,
     finding_to_bom_ref,
     prepare_scan_tree,
-    run_all_detectors,
 )
 
 QUANTUM_CLASSES = ("shor", "grover", "broken_classical", "none", "inspect", "unknown")
@@ -42,6 +41,53 @@ def publish_progress(scan_id: str, payload: dict) -> None:
         pass
 
 
+def _set_scan_progress(scan: Scan, db: Session, scan_id: uuid.UUID, pct: int, stage: str) -> None:
+    scan.current_stage = stage
+    scan.progress_percentage = min(100, max(0, int(pct)))
+    db.commit()
+    publish_progress(
+        str(scan_id),
+        {
+            "status": scan.status,
+            "progress_percentage": scan.progress_percentage,
+            "current_stage": stage,
+            "total_artefacts": scan.total_artefacts or 0,
+            "total_files": scan.total_files or 0,
+            "artefacts_found_so_far": scan.total_artefacts or 0,
+            "critical_risk_count": scan.critical_risk_count or 0,
+            "high_risk_count": scan.high_risk_count or 0,
+        },
+    )
+
+
+def _run_detectors_with_progress(extract_path: Path, scan: Scan, db: Session, scan_id: uuid.UUID):
+    from scanner.detectors.binary_detector import detect_binary
+    from scanner.detectors.catalog_detector import detect_catalog
+    from scanner.detectors.cert_detector import detect_certificates, detect_configs
+    from scanner.detectors.cloud_hsm_detector import detect_cloud_hsm
+    from scanner.detectors.pipeline import normalize_findings
+    from scanner.detectors.sbom_detector import detect_sbom
+    from scanner.detectors.semgrep_detector import detect_semgrep
+    from scanner.detectors.source_detector import detect_manifests, detect_source
+
+    steps: list[tuple[int, str, object]] = [
+        (32, "Detecting — Semgrep rules", detect_semgrep),
+        (38, "Detecting — crypto API catalog", detect_catalog),
+        (44, "Detecting — source patterns", detect_source),
+        (50, "Detecting — package manifests", detect_manifests),
+        (56, "Detecting — certificates and configs", detect_certificates),
+        (58, "Detecting — configuration files", detect_configs),
+        (62, "Detecting — binaries and TLS", detect_binary),
+        (64, "Detecting — cloud HSM references", detect_cloud_hsm),
+        (66, "Detecting — SBOM and lockfiles", detect_sbom),
+    ]
+    findings: list = []
+    for pct, stage, detector in steps:
+        _set_scan_progress(scan, db, scan_id, pct, stage)
+        findings.extend(detector(extract_path))
+    return normalize_findings(findings)
+
+
 def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
     scan = db.query(Scan).filter(Scan.id == scan_id).first()
     if not scan:
@@ -57,10 +103,7 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
 
     try:
         scan.status = "running"
-        scan.current_stage = "Downloading archive"
-        scan.progress_percentage = 5
-        db.commit()
-        publish_progress(str(scan_id), {"status": "running", "progress_percentage": 5, "current_stage": scan.current_stage})
+        _set_scan_progress(scan, db, scan_id, 5, "Downloading archive")
 
         if scan.storage_path:
             if scan.storage_path.startswith("scans/"):
@@ -72,10 +115,7 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
                 if src.resolve() != upload_path.resolve():
                     shutil.copy2(scan.storage_path, upload_path)
 
-        scan.current_stage = "Extracting files"
-        scan.progress_percentage = 15
-        db.commit()
-        publish_progress(str(scan_id), {"status": "running", "progress_percentage": 15, "current_stage": scan.current_stage})
+        _set_scan_progress(scan, db, scan_id, 15, "Extracting files")
 
         decompress_budget = DecompressBudget(max_bytes=settings.scan_max_bytes * 2)
         file_count = prepare_scan_tree(
@@ -87,25 +127,27 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         scan.total_files = file_count
         stats = coverage_stats(extract_path)
 
-        scan.current_stage = (
-            f"Scanning {stats['first_party_files']} first-party files "
-            f"({stats['skipped_vendor_files']} vendor files skipped)"
+        _set_scan_progress(
+            scan,
+            db,
+            scan_id,
+            28,
+            (
+                f"Indexing artefacts — {stats['first_party_files']} first-party files "
+                f"({stats['skipped_vendor_files']} vendor skipped)"
+            ),
         )
-        scan.progress_percentage = 40
-        db.commit()
-        publish_progress(str(scan_id), {"status": "running", "progress_percentage": 40, "current_stage": scan.current_stage})
 
-        findings = run_all_detectors(extract_path)
+        findings = _run_detectors_with_progress(extract_path, scan, db, scan_id)
 
-        scan.current_stage = "Analyzing risk and generating recommendations"
-        scan.progress_percentage = 70
-        db.commit()
+        _set_scan_progress(scan, db, scan_id, 68, "Scoring risk and recommendations")
 
         db.query(Artefact).filter(Artefact.scan_id == scan.id).delete()
 
         critical = high = 0
         cert_days_left: list[float] = []
-        for f in findings:
+        total_findings = len(findings)
+        for idx, f in enumerate(findings):
             cert_expiry_days = None
             if f.asset_type == "certificate" and isinstance(f.raw_metadata, dict):
                 cert_expiry_days = f.raw_metadata.get("days_to_expiry")
@@ -180,6 +222,16 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
             )
             db.add(art)
 
+            if total_findings and (idx == 0 or (idx + 1) % max(1, total_findings // 8) == 0 or idx + 1 == total_findings):
+                scored_pct = 68 + int(27 * (idx + 1) / total_findings)
+                _set_scan_progress(
+                    scan,
+                    db,
+                    scan_id,
+                    scored_pct,
+                    f"Scoring artefacts ({idx + 1}/{total_findings})",
+                )
+
         if cert_days_left:
             max_days = max(cert_days_left)
             suggested = max(1, round(max(max_days, 0) / 365, 2))
@@ -219,7 +271,15 @@ def run_scan_job(db: Session, scan_id: uuid.UUID) -> None:
         scan.error_message = str(exc)[:2000]
         scan.current_stage = "Failed"
         db.commit()
-        publish_progress(str(scan_id), {"status": "failed", "error": scan.error_message})
+        publish_progress(
+            str(scan_id),
+            {
+                "status": "failed",
+                "error_message": scan.error_message,
+                "current_stage": "Failed",
+                "progress_percentage": scan.progress_percentage,
+            },
+        )
     finally:
         import shutil
         if work_root.exists():

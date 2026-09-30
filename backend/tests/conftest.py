@@ -61,3 +61,17 @@ def client(tmp_path, monkeypatch):
 
     with TestClient(main_module.app) as c:
         yield c
+
+
+def wait_for_scan(client, scan_id: str, headers: dict, timeout: float = 120.0) -> dict:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        resp = client.get(f"/api/v1/scans/{scan_id}", headers=headers)
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        if body.get("status") in ("completed", "failed"):
+            return body
+        time.sleep(0.05)
+    raise AssertionError(f"scan {scan_id} did not finish within {timeout}s")

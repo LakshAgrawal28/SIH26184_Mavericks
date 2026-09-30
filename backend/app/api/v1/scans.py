@@ -1,4 +1,5 @@
 import json
+import threading
 import uuid
 from datetime import datetime
 
@@ -21,6 +22,16 @@ from app.services.scan_service import (
 from app.services.storage import storage_service
 
 router = APIRouter(prefix="/scans", tags=["scans"])
+
+
+def _run_scan_in_background(scan_id: uuid.UUID) -> None:
+    db = SessionLocal()
+    try:
+        from app.services.scan_service import run_scan_job
+
+        run_scan_job(db, scan_id)
+    finally:
+        db.close()
 
 
 def _layer_name(method: str | None) -> str:
@@ -126,10 +137,10 @@ async def create_scan(
         with open(upload_path, "wb") as f:
             f.write(content)
         scan.storage_path = str(upload_path)
+        scan.current_stage = "Upload received"
+        scan.progress_percentage = 3
         db.commit()
-        from app.services.scan_service import run_scan_job
-
-        run_scan_job(db, scan.id)
+        threading.Thread(target=_run_scan_in_background, args=(scan.id,), daemon=True).start()
         db.refresh(scan)
     else:
         key = f"scans/raw/{scan.id}{storage_suffix}"

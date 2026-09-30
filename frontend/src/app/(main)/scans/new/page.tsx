@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { API_URL, getToken } from "@/lib/api";
 import { fetchCorpusDemo, findCorpusDemo } from "@/lib/corpus";
+import ScanProgressPanel from "@/components/scan/ScanProgressPanel";
+import { uploadScan } from "@/lib/uploadScan";
 
 function NewScanForm() {
   const router = useRouter();
@@ -23,6 +24,7 @@ function NewScanForm() {
   const [dataLifetimeX, setDataLifetimeX] = useState(10);
   const [migrationTimeY, setMigrationTimeY] = useState(4);
   const [loading, setLoading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -52,6 +54,7 @@ function NewScanForm() {
     e.preventDefault();
     if (!file) return;
     setLoading(true);
+    setUploadPercent(0);
     setError("");
     const form = new FormData();
     form.append("name", name);
@@ -60,17 +63,10 @@ function NewScanForm() {
     form.append("data_lifetime_x", dataLifetimeX.toString());
     form.append("migration_time_y", migrationTimeY.toString());
     try {
-      const res = await fetch(`${API_URL}/api/v1/scans`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: form,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { scan_id: string };
+      const data = await uploadScan(form, setUploadPercent);
       router.push(`/scans/${data.scan_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
       setLoading(false);
     }
   }
@@ -154,6 +150,20 @@ function NewScanForm() {
                 onValueChange={(v) => setMigrationTimeY(v[0] ?? 4)}
               />
             </div>
+
+            {loading && (
+              <ScanProgressPanel
+                progress={uploadPercent}
+                status="running"
+                stage={uploadPercent >= 100 ? "Upload received" : "Uploading archive"}
+                title={uploadPercent >= 100 ? "Starting scan" : "Uploading archive"}
+                description={
+                  uploadPercent >= 100
+                    ? "Archive received — opening scan console…"
+                    : `Sending ${file?.name ?? "archive"} (${uploadPercent}% of file)`
+                }
+              />
+            )}
 
             {error && <p className="text-sm text-[#B3261E]">{error}</p>}
 

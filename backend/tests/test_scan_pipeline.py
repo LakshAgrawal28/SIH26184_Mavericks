@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from conftest import wait_for_scan
+
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS_ZIP = ROOT / "scanner" / "corpus" / "archives" / "java-rsa-aes.zip"
 
@@ -27,13 +29,9 @@ def test_sync_scan_java_rsa_aes_zip(client):
             files={"file": ("java-rsa-aes.zip", fh, "application/zip")},
         )
     assert resp.status_code == 201, resp.text
-    body = resp.json()
-    assert body["status"] == "completed"
-    scan_id = body["scan_id"]
+    scan_id = resp.json()["scan_id"]
 
-    detail = client.get(f"/api/v1/scans/{scan_id}", headers=headers)
-    assert detail.status_code == 200
-    scan = detail.json()
+    scan = wait_for_scan(client, scan_id, headers)
     assert scan["status"] == "completed"
     assert scan["total_artefacts"] >= 2
     assert scan["total_files"] >= 1
@@ -139,7 +137,7 @@ def test_ecdat_summary_keys_without_crypto(client):
     assert resp.status_code == 201, resp.text
     scan_id = resp.json()["scan_id"]
 
-    detail = client.get(f"/api/v1/scans/{scan_id}", headers=headers).json()
+    detail = wait_for_scan(client, scan_id, headers)
     assert "suggested_data_lifetime_x" in detail
     assert detail["data_lifetime_x"] == 10.0
 

@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from conftest import wait_for_scan
+
 ROOT = Path(__file__).resolve().parents[2]
 REALISTIC_ZIP = ROOT / "scanner" / "corpus" / "archives" / "realistic-stack.zip"
 
@@ -29,11 +31,10 @@ def test_random_zip_upload_is_not_empty(client):
             files={"file": ("realistic-stack.zip", fh, "application/zip")},
         )
     assert resp.status_code == 201, resp.text
-    body = resp.json()
-    assert body["status"] == "completed"
-    scan_id = body["scan_id"]
+    scan_id = resp.json()["scan_id"]
 
-    detail = client.get(f"/api/v1/scans/{scan_id}", headers=headers).json()
+    detail = wait_for_scan(client, scan_id, headers)
+    assert detail["status"] == "completed"
     assert detail["total_files"] > 0
     assert detail["total_artefacts"] >= 15, "the old detector pack would have shown 0 here"
 

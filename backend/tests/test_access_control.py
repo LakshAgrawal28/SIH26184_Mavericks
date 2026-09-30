@@ -1,6 +1,7 @@
 import io
 import zipfile
 
+from conftest import wait_for_scan
 from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models import User
@@ -31,6 +32,7 @@ def test_cross_user_scan_isolation(client):
     )
     assert create.status_code == 201, create.text
     scan_id = create.json()["scan_id"]
+    wait_for_scan(client, scan_id, headers_a)
 
     db = SessionLocal()
     try:

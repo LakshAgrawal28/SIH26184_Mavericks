@@ -20,6 +20,8 @@ import ExecutiveSummaryStrip from "@/components/scan/ExecutiveSummaryStrip";
 import ScanExportCenter from "@/components/scan/ScanExportCenter";
 import { computeAgilityMetrics, migrationWaveOne } from "@/lib/scanInsights";
 import { cn } from "@/lib/utils";
+import ScanProgressPanel from "@/components/scan/ScanProgressPanel";
+import { formatScanStage, SCAN_POLL_INTERVAL_MS } from "@/lib/scanProgress";
 
 function quantumStyle(kind?: string) {
   if (kind === "shor") return "bg-red-50/90 text-red-800";
@@ -37,6 +39,18 @@ function quantumLabel(kind?: string) {
   if (kind === "inspect") return "Inspect (not an algo)";
   if (kind === "none") return "PQC-safe";
   return kind || "Unknown";
+}
+
+const AI_ASSISTANT_UNAVAILABLE_FALLBACK =
+  "Enable AI narration on the API server (e.g. Render → ecdat-api → Environment).";
+
+/** Strip vendor names from API status messages shown in the assistant UI. */
+function sanitizeAiUnavailableReason(reason: string): string {
+  return reason
+    .replace(/\bGROQ_API_KEY\b/gi, "the AI API key")
+    .replace(/\s*\(Groq[^)]*\)/gi, "")
+    .replace(/\bGroq\b/gi, "AI")
+    .trim();
 }
 
 type Tab = "overview" | "inventory" | "mosca" | "recommendations" | "exports" | "assistant";
@@ -251,7 +265,7 @@ function ScanDetailPage() {
       } catch {
         /* keep polling */
       }
-    }, 800);
+    }, SCAN_POLL_INTERVAL_MS);
 
     const token = getToken();
     const wsBase = `${API_URL.replace(/^http/, "ws")}/api/v1/scans/${id}/progress`;
@@ -261,7 +275,16 @@ function ScanDetailPage() {
       ws.onmessage = (ev) => {
         try {
           const data = JSON.parse(ev.data) as Partial<Scan>;
-          setScan((prev) => (prev ? { ...prev, ...data } : prev));
+          setScan((prev) => ({
+            scan_id: id,
+            name: prev?.name ?? "",
+            status: prev?.status ?? "queued",
+            total_artefacts: prev?.total_artefacts ?? 0,
+            critical_risk_count: prev?.critical_risk_count ?? 0,
+            high_risk_count: prev?.high_risk_count ?? 0,
+            ...prev,
+            ...data,
+          }));
           if (data.data_lifetime_x !== undefined) setMoscaX(data.data_lifetime_x);
           if (data.migration_time_y !== undefined) setMoscaY(data.migration_time_y);
           if (data.status === "completed") {
@@ -511,7 +534,7 @@ function ScanDetailPage() {
       <div className="console-meta-bar mb-6">
         <StatusBadge status={scan.status} />
         {scan.current_stage && scan.status !== "completed" && (
-          <span className="text-sm text-ink-muted">{scan.current_stage}</span>
+          <span className="text-sm text-ink-muted">{formatScanStage(scan.current_stage, scan.status)}</span>
         )}
         <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
         <span className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Scan ID</span>
@@ -581,19 +604,26 @@ function ScanDetailPage() {
         </div>
       )}
 
+      {scan.status === "failed" && (
+        <ScanProgressPanel
+          progress={progress}
+          stage={scan.current_stage}
+          status={scan.status}
+          variant="error"
+          description={
+            scan.error_message ||
+            "The scan could not finish. Try a smaller archive or check server logs."
+          }
+        />
+      )}
+
       {scan.status !== "completed" && scan.status !== "failed" && (
-        <div className="console-scan-progress">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="console-section-title">Discovery in progress</p>
-            <span className="font-mono text-sm tabular-nums text-primary">{progress}%</span>
-          </div>
-          <p className="console-section-desc">
-            {scan.current_stage || "Processing archive"} — artefacts and risk scores appear when the run completes.
-          </p>
-          <div className="metric-bar mt-3" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-            <div className="metric-bar-fill" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
+        <ScanProgressPanel
+          progress={progress}
+          stage={scan.current_stage}
+          status={scan.status}
+          description={`${formatScanStage(scan.current_stage, scan.status)} — artefacts and risk scores appear when the run completes.`}
+        />
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mt-8 gap-6">
@@ -1193,7 +1223,7 @@ function ScanDetailPage() {
 
         <TabsContent value="assistant">
           <div className="panel-muted p-4 text-sm text-foreground">
-            <p className="console-section-title">AI-generated narration (Groq)</p>
+            <p className="console-section-title">ECDAT assistant</p>
             <p className="console-section-desc">
               Summaries and chat use only deterministic scan data. Artefacts, scores, and CBOM export
               remain authoritative. Detection is never performed by the model.
@@ -1203,8 +1233,9 @@ function ScanDetailPage() {
           {aiStatus && !aiStatus.available && (
             <p className="mt-4 border border-border bg-surface px-3 py-2 text-sm text-ink-muted">
               Assistant unavailable.{" "}
-              {aiStatus.reason ||
-                "Set AI_NARRATION_ENABLED=true and GROQ_API_KEY on the API server (e.g. Render → ecdat-api → Environment)."}
+              {aiStatus.reason
+                ? sanitizeAiUnavailableReason(aiStatus.reason)
+                : AI_ASSISTANT_UNAVAILABLE_FALLBACK}
             </p>
           )}
 
@@ -1266,7 +1297,7 @@ function ScanDetailPage() {
                       )}
                     >
                       <span className="text-[10px] font-semibold text-ink-muted">
-                        {m.role === "user" ? "You" : "AI (Groq)"}
+                        {m.role === "user" ? "You" : "Assistant"}
                       </span>
                       {m.role === "assistant" ? (
                         <NarrativeMarkdown content={m.text} compact className="mt-1" />
