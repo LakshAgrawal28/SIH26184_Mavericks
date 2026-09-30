@@ -30,7 +30,7 @@ function isSeparatorRow(cells: string[]): boolean {
   return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
 }
 
-/** Groq often wraps wide tables across two pipe-lines per logical row — merge them. */
+/** Some models wrap wide tables across two pipe-lines per logical row — merge them. */
 function mergeSplitTableRows(header: string[], rows: string[][]): string[][] {
   const cols = header.length;
   if (cols < 2) return rows;
