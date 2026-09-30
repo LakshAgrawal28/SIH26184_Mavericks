@@ -444,11 +444,10 @@ async def scan_progress_ws(
         except HTTPException:
             await websocket.close(code=1008, reason="Not authenticated")
             return
-        owned = (
-            db.query(Scan)
-            .filter(Scan.id == uuid.UUID(scan_id), Scan.owner_id == user.id)
-            .first()
-        )
+        ws_query = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id))
+        if user.role != "admin":
+            ws_query = ws_query.filter(Scan.owner_id == user.id)
+        owned = ws_query.first()
         if not owned:
             await websocket.close(code=1008, reason="Scan not found")
             return
@@ -461,11 +460,10 @@ async def scan_progress_ws(
     def snapshot() -> dict | None:
         db = SessionLocal()
         try:
-            scan = (
-                db.query(Scan)
-                .filter(Scan.id == uuid.UUID(scan_id), Scan.owner_id == user.id)
-                .first()
-            )
+            snap_query = db.query(Scan).filter(Scan.id == uuid.UUID(scan_id))
+            if user.role != "admin":
+                snap_query = snap_query.filter(Scan.owner_id == user.id)
+            scan = snap_query.first()
             if not scan:
                 return None
             return {

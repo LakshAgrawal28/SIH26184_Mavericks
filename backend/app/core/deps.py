@@ -57,11 +57,10 @@ def user_from_access_token(token: str, db: Session) -> User:
 
 
 def get_scan_for_user(db: Session, scan_id: str, user: User) -> Scan:
-    scan = (
-        db.query(Scan)
-        .filter(Scan.id == parse_scan_id(scan_id), Scan.owner_id == user.id)
-        .first()
-    )
+    query = db.query(Scan).filter(Scan.id == parse_scan_id(scan_id))
+    if user.role != "admin":
+        query = query.filter(Scan.owner_id == user.id)
+    scan = query.first()
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
     return scan
