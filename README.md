@@ -510,6 +510,7 @@ mindmap
 Create a local `.env` from the template (**required** — Compose loads `.env`, not `.env.example`):
 
 ```bash
+# GitHub repo slug is still SIH26184_Mavericks; team branding is Team Maverics.
 git clone https://github.com/LakshAgrawal28/SIH26184_Mavericks.git
 cd SIH26184_Mavericks
 cp .env.example .env   # edit secrets in .env before any non-local deploy

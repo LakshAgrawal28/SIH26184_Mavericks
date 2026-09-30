@@ -31,6 +31,6 @@ ECDAT accepts untrusted zip archives uploaded by users and runs static analysis 
 
 If you discover a potential security flaw in ECDAT, please report it via encrypted email to:
 
-- **Security contact:** `security@ecdat.local` / `mavericks-sih@ntro.gov.in`
+- **Security contact:** `security@ecdat.local` / `maverics-sih@ntro.gov.in`
 
 Please do not disclose vulnerabilities publicly until a patch has been released.

@@ -82,7 +82,11 @@ def test_scan_service_persists_redacted_evidence_snippet():
             "coverage_stats",
             lambda _d: {"first_party_files": 1, "skipped_vendor_files": 0},
         )
-        mp.setattr(scan_service_module, "run_all_detectors", lambda _d: [finding])
+        mp.setattr(
+            scan_service_module,
+            "_run_detectors_with_progress",
+            lambda *_a, **_k: [finding],
+        )
         mp.setattr(scan_service_module, "publish_progress", lambda *_a, **_k: None)
         run_scan_job(db, scan_id)
 

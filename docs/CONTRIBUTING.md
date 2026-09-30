@@ -14,6 +14,7 @@ Thank you for contributing to **ECDAT** (Enterprise Cryptographic Discovery & An
 
 ### 1. Environment Setup
 ```bash
+# GitHub repo slug is still SIH26184_Mavericks; team branding is **Team Maverics**.
 git clone https://github.com/LakshAgrawal28/SIH26184_Mavericks.git
 cd SIH26184_Mavericks
 cp .env.example .env
