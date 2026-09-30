@@ -9,7 +9,8 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
-import { apiFetch, getToken } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
+import { redirectToLoginOnUnauthorized, requireSessionToken } from "@/lib/auth";
 import { computeAgilityMetrics, migrationWaveOne } from "@/lib/scanInsights";
 import type { MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
 
@@ -29,10 +30,7 @@ export default function ExecutivePage() {
   );
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
+    if (!requireSessionToken(router)) return;
     apiFetch<{ scans?: Scan[] }>("/api/v1/scans")
       .then((data) => {
         const list = data.scans || [];
@@ -40,7 +38,9 @@ export default function ExecutivePage() {
         const first = list.find((s) => s.status === "completed");
         if (first) setSelectedId(first.scan_id);
       })
-      .catch(() => router.replace("/login"))
+      .catch((err) => {
+        redirectToLoginOnUnauthorized(err, router);
+      })
       .finally(() => setLoading(false));
   }, [router]);
 

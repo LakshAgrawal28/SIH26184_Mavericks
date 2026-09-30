@@ -1,17 +1,26 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IconLogoMark } from "@/components/icons/NavIcons";
+
+const MARKETING_PATHS = new Set(["/", "/login", "/signup", "/trust"]);
+
+function isMarketingRoute(pathname: string): boolean {
+  return MARKETING_PATHS.has(pathname);
+}
 
 const SESSION_KEY = "ecdat_entry_seen";
 
 export function EntrySplash() {
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (typeof window === "undefined") return;
+    if (!isMarketingRoute(pathname)) return;
     if (sessionStorage.getItem(SESSION_KEY)) return;
     setVisible(true);
     const hideTimer = window.setTimeout(() => setVisible(false), 900);
@@ -22,7 +31,7 @@ export function EntrySplash() {
       window.clearTimeout(hideTimer);
       window.clearTimeout(doneTimer);
     };
-  }, []);
+  }, [pathname]);
 
   if (!mounted || !visible) return null;
 

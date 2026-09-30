@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { API_URL, apiFetch, copyText, getToken } from "@/lib/api";
+import { requireSessionToken } from "@/lib/auth";
 import type { Artefact, MoscaResult, Recommendation, Scan, ScanSummary } from "@/lib/types";
 import NarrativeMarkdown from "@/components/NarrativeMarkdown";
 import ExecutiveSummaryStrip from "@/components/scan/ExecutiveSummaryStrip";
@@ -234,10 +235,7 @@ function ScanDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
+    if (!requireSessionToken(router)) return;
 
     const load = async () => {
       try {

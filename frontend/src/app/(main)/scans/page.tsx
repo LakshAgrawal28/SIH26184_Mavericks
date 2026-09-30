@@ -7,7 +7,8 @@ import PageHeader from "@/components/PageHeader";
 import StatusBadge from "@/components/StatusBadge";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
-import { apiFetch, copyText, getToken } from "@/lib/api";
+import { apiFetch, copyText } from "@/lib/api";
+import { redirectToLoginOnUnauthorized, requireSessionToken } from "@/lib/auth";
 import type { Scan } from "@/lib/types";
 
 export default function ScansPage() {
@@ -30,13 +31,12 @@ export default function ScansPage() {
   }
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
+    if (!requireSessionToken(router)) return;
     apiFetch<{ scans?: Scan[] }>("/api/v1/scans")
       .then((data) => setScans(data.scans || []))
-      .catch(() => router.replace("/login"))
+      .catch((err) => {
+        redirectToLoginOnUnauthorized(err, router);
+      })
       .finally(() => setLoading(false));
   }, [router]);
 

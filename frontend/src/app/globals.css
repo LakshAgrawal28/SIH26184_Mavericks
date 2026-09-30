@@ -459,7 +459,13 @@
 }
 
 .page-transition {
-  animation: ecdat-fade-up 0.5s var(--ease-out-expo) both;
+  animation: ecdat-fade-in 0.18s var(--ease-standard) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
 }
 
 .ecdat-marketing-cursor,

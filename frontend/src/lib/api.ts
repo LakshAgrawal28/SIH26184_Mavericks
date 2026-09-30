@@ -6,6 +6,16 @@ function resolveApiUrl(): string {
 
 export const API_URL = resolveApiUrl();
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("ecdat_token");
@@ -97,7 +107,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     } catch {
       // Keep the plain-text response when it is not JSON.
     }
-    throw new Error(message);
+    throw new ApiError(message, res.status);
   }
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json() as Promise<T>;

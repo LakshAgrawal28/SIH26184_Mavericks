@@ -21,4 +21,4 @@ export function isScanInFlight(status?: string): boolean {
   return status !== undefined && status !== "completed" && status !== "failed";
 }
 
-export const SCAN_POLL_INTERVAL_MS = 800;
+export const SCAN_POLL_INTERVAL_MS = 2500;

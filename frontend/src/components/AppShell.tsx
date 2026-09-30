@@ -2,20 +2,44 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PageMotion } from "@/components/premium/PageMotion";
 import { mainNav } from "@/lib/navigation";
 import { getToken } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { IconLogoMark } from "@/components/icons/NavIcons";
 
+function ConsoleAuthPlaceholder() {
+  return (
+    <div className="console-canvas flex min-h-screen">
+      <aside
+        className="hidden w-[248px] shrink-0 border-r border-border bg-card/95 md:block"
+        aria-hidden
+      />
+      <div className="flex min-w-0 flex-1 flex-col p-6 md:p-8">
+        <div className="h-7 w-40 max-w-full animate-pulse rounded-md bg-surface" />
+        <div className="mt-6 h-48 w-full animate-pulse rounded-lg bg-surface" />
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (!getToken()) router.replace("/login");
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+    setSessionReady(true);
   }, [router]);
+
+  if (!sessionReady) {
+    return <ConsoleAuthPlaceholder />;
+  }
 
   return (
     <div className="console-canvas flex min-h-screen">
@@ -45,6 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200",
                   active
@@ -89,6 +114,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch
                   className={cn(
                     "flex flex-1 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-medium transition-colors",
                     active ? "text-primary" : "text-ink-muted"

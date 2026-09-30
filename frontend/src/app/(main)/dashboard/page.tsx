@@ -9,7 +9,8 @@ import StatusBadge from "@/components/StatusBadge";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
 import { IconEmptyScans } from "@/components/icons/NavIcons";
-import { apiFetch, getToken } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
+import { redirectToLoginOnUnauthorized, requireSessionToken } from "@/lib/auth";
 import { corpusDemoHref, QUICK_START_CORPUS } from "@/lib/corpus";
 import type { Scan } from "@/lib/types";
 
@@ -25,10 +26,7 @@ export default function DashboardPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
+    if (!requireSessionToken(router)) return;
     Promise.all([
       apiFetch<{ scans?: Scan[] }>("/api/v1/scans"),
       apiFetch<{
@@ -42,7 +40,9 @@ export default function DashboardPage() {
         setScans(data.scans || []);
         if (acc) setAccuracy(acc);
       })
-      .catch(() => router.replace("/login"))
+      .catch((err) => {
+        redirectToLoginOnUnauthorized(err, router);
+      })
       .finally(() => setLoading(false));
   }, [router]);
 

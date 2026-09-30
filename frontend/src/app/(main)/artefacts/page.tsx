@@ -7,39 +7,49 @@ import PageHeader from "@/components/PageHeader";
 import RiskBadge from "@/components/RiskBadge";
 import { TableSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/input";
-import { apiFetch, getToken } from "@/lib/api";
+import { mapPool } from "@/lib/asyncPool";
+import { apiFetch } from "@/lib/api";
+import { redirectToLoginOnUnauthorized, requireSessionToken } from "@/lib/auth";
 import type { Artefact, Scan } from "@/lib/types";
 
 type ArtefactRow = Artefact & { scan_id: string; scan_name: string };
+
+const MAX_SCANS = 20;
+const FETCH_CONCURRENCY = 4;
 
 export default function ArtefactsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ArtefactRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
+    if (!requireSessionToken(router)) return;
 
     async function load() {
+      setLoadError(null);
       try {
         const { scans = [] } = await apiFetch<{ scans?: Scan[] }>("/api/v1/scans");
-        const completed = scans.filter((s) => s.status === "completed");
-        const all: ArtefactRow[] = [];
-        for (const scan of completed.slice(0, 20)) {
-          const data = await apiFetch<{ artefacts?: Artefact[] }>(
-            `/api/v1/scans/${scan.scan_id}/artefacts?limit=500`
-          );
-          for (const a of data.artefacts || []) {
-            all.push({ ...a, scan_id: scan.scan_id, scan_name: scan.name });
+        const completed = scans.filter((s) => s.status === "completed").slice(0, MAX_SCANS);
+        const batches = await mapPool(completed, FETCH_CONCURRENCY, async (scan) => {
+          try {
+            const data = await apiFetch<{ artefacts?: Artefact[] }>(
+              `/api/v1/scans/${scan.scan_id}/artefacts?limit=500`
+            );
+            return (data.artefacts || []).map((a) => ({
+              ...a,
+              scan_id: scan.scan_id,
+              scan_name: scan.name,
+            }));
+          } catch {
+            return [] as ArtefactRow[];
           }
-        }
-        setRows(all);
-      } catch {
-        router.replace("/login");
+        });
+        setRows(batches.flat());
+      } catch (err) {
+        if (redirectToLoginOnUnauthorized(err, router)) return;
+        setLoadError(err instanceof Error ? err.message : "Could not load artefacts.");
       } finally {
         setLoading(false);
       }
@@ -75,6 +85,12 @@ export default function ArtefactsPage() {
         />
       </div>
 
+      {loadError && (
+        <p className="mb-4 text-sm text-destructive" role="alert">
+          {loadError}
+        </p>
+      )}
+
       <div className="panel">
         {loading ? (
           <div className="p-5">
@@ -83,10 +99,10 @@ export default function ArtefactsPage() {
         ) : filtered.length === 0 ? (
           <div className="px-6 py-14 text-left">
             <p className="text-sm font-medium text-foreground">No artefacts yet</p>
-          <p className="mt-1 text-sm text-ink-muted">
-            Complete a scan to populate the global inventory. Filter by quantum class on a scan
-            detail page (Shor vs Grover vs inspect).
-          </p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Complete a scan to populate the global inventory. Filter by quantum class on a scan
+              detail page (Shor vs Grover vs inspect).
+            </p>
             <Link
               href="/scans/new"
               className="mt-4 inline-block text-sm font-medium text-[#1B4B8C] hover:underline"
@@ -122,7 +138,8 @@ export default function ArtefactsPage() {
                     </td>
                     <td className="text-right">
                       <Link
-                        href={`/scans/${a.scan_id}`}
+                        href={`/scans/${a.scan_id}?tab=inventory`}
+                        prefetch
                         className="text-sm font-medium text-primary hover:underline"
                       >
                         Open scan
