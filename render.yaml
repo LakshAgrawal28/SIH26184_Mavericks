@@ -1,5 +1,15 @@
 # Render Blueprint — ECDAT (main branch)
 # https://dashboard.render.com/blueprints
+#
+# Scans/users live in PostgreSQL (DATABASE_URL). Do not use SQLite here — Render’s
+# filesystem is ephemeral and SQLite files are wiped on deploy/restart.
+# Alternative: set DATABASE_URL in the Dashboard to your Supabase DB URI instead
+# of using fromDatabase below (same Postgres, visible in Supabase Table Editor).
+
+databases:
+  - name: ecdat-db
+    plan: free
+    region: oregon
 
 services:
   - type: web
@@ -13,7 +23,9 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        value: sqlite:///./ecdat_prod.db
+        fromDatabase:
+          name: ecdat-db
+          property: connectionString
       - key: SYNC_SCAN
         value: "true"
       - key: JWT_SECRET

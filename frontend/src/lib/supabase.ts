@@ -7,7 +7,10 @@ export const supabaseConfigured = Boolean(url && publishableKey);
 
 let client: SupabaseClient | null = null;
 
-/** Browser-safe Supabase client (publishable key). Returns null if env is not set. */
+/**
+ * Browser-safe Supabase client (publishable key). Returns null if env is not set.
+ * Scans and artefacts are stored in the FastAPI backend database (DATABASE_URL), not via Supabase client.
+ */
 export function getSupabase(): SupabaseClient | null {
   if (!supabaseConfigured) return null;
   if (!client) {
