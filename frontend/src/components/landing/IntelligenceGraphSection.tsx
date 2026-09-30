@@ -69,7 +69,10 @@ export function IntelligenceGraphSection() {
         />
       </div>
 
-      <div ref={ref} className="relative mx-auto mt-8 h-[400px] max-w-[1280px] overflow-hidden sm:mt-10 sm:h-[500px] lg:h-[540px]">
+      <div
+        ref={ref}
+        className="relative mx-auto mt-8 h-[400px] max-w-[1280px] overflow-hidden bg-background sm:mt-10 sm:h-[500px] lg:h-[540px]"
+      >
         <div className="intel-grid pointer-events-none absolute inset-0 opacity-50" aria-hidden />
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(56,189,248,0.08),transparent_70%)]"
@@ -112,6 +115,10 @@ export function IntelligenceGraphSection() {
           )}
         </AnimatePresence>
 
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-background"
+          aria-hidden
+        />
         <div className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-wrap justify-center gap-2 px-6">
           {GRAPH_CHAIN_EDGES.slice(0, 3).map(([a, b]) => (
             <span key={`${a}${b}`} className="intel-sample-tag bg-background/60">

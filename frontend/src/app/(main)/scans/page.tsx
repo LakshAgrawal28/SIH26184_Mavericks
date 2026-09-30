@@ -70,24 +70,24 @@ export default function ScansPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="console-data-table">
               <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Name</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Scan ID</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Status</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Artefacts</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Critical</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">High</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Created</th>
-                  <th className="px-5 py-3" />
+                <tr>
+                  <th>Name</th>
+                  <th>Scan ID</th>
+                  <th>Status</th>
+                  <th>Artefacts</th>
+                  <th>Critical</th>
+                  <th>High</th>
+                  <th>Created</th>
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody>
                 {scans.map((s) => (
-                  <tr key={s.scan_id} className="border-b border-border last:border-0">
-                    <td className="px-5 py-3.5 font-medium text-foreground">{s.name}</td>
-                    <td className="px-5 py-3.5">
+                  <tr key={s.scan_id}>
+                    <td className="font-medium text-foreground">{s.name}</td>
+                    <td>
                       <div className="flex items-center gap-2">
                         <code className="font-mono text-xs text-ink-muted" title={s.scan_id}>
                           {s.scan_id.slice(0, 8)}…
@@ -103,24 +103,24 @@ export default function ScansPage() {
                         </Button>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td>
                       <StatusBadge status={s.status} />
                     </td>
-                    <td className="px-5 py-3.5 font-mono tabular-nums text-ink-muted">
+                    <td className="font-mono tabular-nums text-ink-muted">
                       {s.total_artefacts}
                     </td>
-                    <td className="px-5 py-3.5 font-mono tabular-nums text-destructive">
+                    <td className="font-mono tabular-nums text-destructive">
                       {s.critical_risk_count}
                     </td>
-                    <td className="px-5 py-3.5 font-mono tabular-nums text-[#a66b12]">
+                    <td className="font-mono tabular-nums text-[#a66b12]">
                       {s.high_risk_count}
                     </td>
-                    <td className="px-5 py-3.5 text-ink-muted">
+                    <td className="text-ink-muted">
                       {s.created_at
                         ? new Date(s.created_at).toLocaleDateString()
                         : "—"}
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="text-right">
                       <Link
                         href={`/scans/${s.scan_id}`}
                         className="text-sm font-medium text-primary hover:underline"

@@ -9,13 +9,20 @@ import { Button } from "@/components/ui/button";
 
 export function CommandCtaSection() {
   return (
-    <section id="command" className="relative isolate overflow-hidden border-t border-border bg-black">
-      <HeroNetwork variant="reconstruct" density={38} className="opacity-45" />
+    <section
+      id="command"
+      className="relative isolate overflow-hidden border-t border-border bg-background py-14 sm:py-16"
+    >
+      <HeroNetwork variant="reconstruct" density={32} className="opacity-[0.28]" />
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_45%_45%_at_50%_50%,rgba(0,0,0,0.9),transparent_80%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_45%,rgba(13,59,102,0.07),transparent_72%)]"
         aria-hidden
       />
-      <div className="relative mx-auto flex min-h-[50vh] max-w-[1280px] flex-col items-center justify-center px-6 py-16 text-center sm:py-20">
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-background"
+        aria-hidden
+      />
+      <div className="relative mx-auto flex max-w-[1280px] flex-col items-center justify-center px-6 text-center">
         <BlurReveal>
           <p className="font-mono text-[11px] tracking-[0.3em] text-ink-muted uppercase">
             <span className="text-primary">08</span> // NTRO / ECDAT

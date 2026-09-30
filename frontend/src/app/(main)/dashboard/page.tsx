@@ -52,8 +52,10 @@ export default function DashboardPage() {
   const totalArtefacts = scans.reduce((acc, s) => acc + (s.total_artefacts ?? 0), 0);
   const recent = scans.slice(0, 8);
 
+  const openRisk = totalCritical + totalHigh;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         breadcrumb={["NTRO / ECDAT", "Console"]}
         title="Discovery console"
@@ -71,27 +73,37 @@ export default function DashboardPage() {
         className="!mb-0"
       />
 
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total scans" value={totalScans} hint="Completed and in-flight discovery runs" />
-        <StatCard label="Total artefacts" value={totalArtefacts} hint="Crypto assets across all scans" />
-        <StatCard
-          label="Critical risk"
-          value={totalCritical}
-          dot="critical"
-          hint="Aggregated critical band counts"
-        />
-        <StatCard label="High risk" value={totalHigh} dot="high" hint="Aggregated high band counts" />
-      </div>
+      <section>
+        <p className="console-section-label mb-3">Portfolio snapshot</p>
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Total scans" value={totalScans} hint="Completed and in-flight discovery runs" />
+          <StatCard label="Total artefacts" value={totalArtefacts} hint="Crypto assets across all scans" />
+          <StatCard
+            label="Critical risk"
+            value={totalCritical}
+            dot="critical"
+            hint="Aggregated critical band counts"
+          />
+          <StatCard label="High risk" value={totalHigh} dot="high" hint="Aggregated high band counts" />
+        </div>
+        {!loading && totalScans > 0 && (
+          <p className="mt-3 text-sm text-ink-muted">
+            <span className="font-medium text-foreground">{openRisk}</span> artefacts in critical or high bands
+            across your scan history.
+          </p>
+        )}
+      </section>
 
-      <PageHeader
-        className="!mb-3 !mt-2"
-        title="Recent scans"
-        actions={
+      <section>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="console-section-label">Activity</p>
+            <h2 className="console-section-title text-base">Recent scans</h2>
+          </div>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/scans">View all</Link>
           </Button>
-        }
-      />
+        </div>
 
       <div className="panel overflow-hidden">
         {loading ? (
@@ -111,34 +123,34 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="console-data-table">
               <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-4 py-2.5 text-[11px] font-medium text-ink-muted">Name</th>
-                  <th className="px-4 py-2.5 text-[11px] font-medium text-ink-muted">Status</th>
-                  <th className="px-4 py-2.5 text-[11px] font-medium text-ink-muted">Artefacts</th>
-                  <th className="px-4 py-2.5 text-[11px] font-medium text-ink-muted">Critical</th>
-                  <th className="px-4 py-2.5 text-[11px] font-medium text-ink-muted">High</th>
-                  <th className="px-4 py-2.5" />
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Artefacts</th>
+                  <th>Critical</th>
+                  <th>High</th>
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody>
                 {recent.map((s) => (
-                  <tr key={s.scan_id} className="border-b border-border/80 last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-foreground">{s.name}</td>
-                    <td className="px-4 py-2.5">
+                  <tr key={s.scan_id}>
+                    <td className="font-medium text-foreground">{s.name}</td>
+                    <td>
                       <StatusBadge status={s.status} />
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-ink-muted">
+                    <td className="font-mono text-xs tabular-nums text-ink-muted">
                       {s.total_artefacts}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-destructive">
+                    <td className="font-mono text-xs tabular-nums text-destructive">
                       {s.critical_risk_count}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs tabular-nums text-[#a66b12]">
+                    <td className="font-mono text-xs tabular-nums text-[#a66b12]">
                       {s.high_risk_count}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="text-right">
                       <Link href={`/scans/${s.scan_id}`} className="text-sm font-medium text-primary hover:underline">
                         Open
                       </Link>
@@ -150,6 +162,7 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+      </section>
 
       {accuracy && (
         <div className="panel flex flex-wrap items-start justify-between gap-4 px-5 py-4">
@@ -188,8 +201,9 @@ export default function DashboardPage() {
       )}
 
       <section>
-        <h2 className="text-sm font-semibold text-foreground">Quick start</h2>
-        <p className="mt-0.5 text-xs text-ink-muted">Bundled demo archives from scanner/corpus/</p>
+        <p className="console-section-label">Onboarding</p>
+        <h2 className="console-section-title">Quick start</h2>
+        <p className="console-section-desc">Bundled demo archives from scanner/corpus/</p>
         <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
           {QUICK_START_CORPUS.map((item) => (
             <div key={item.file} className="panel flex items-center justify-between gap-3 p-3.5">

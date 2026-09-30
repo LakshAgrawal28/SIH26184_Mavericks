@@ -96,39 +96,34 @@ export default function ArtefactsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="console-data-table">
               <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Name</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Type</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Scan</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Risk</th>
-                  <th className="px-5 py-3 text-xs font-medium text-ink-muted">Location</th>
-                  <th className="px-5 py-3" />
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Scan</th>
+                  <th>Risk</th>
+                  <th>Location</th>
+                  <th className="w-24" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((a) => (
-                  <tr
-                    key={`${a.scan_id}-${a.artefact_id}`}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-5 py-3.5 font-mono text-sm font-medium text-foreground">
-                      {a.name}
-                    </td>
-                    <td className="px-5 py-3.5 capitalize text-ink-muted">{a.asset_type}</td>
-                    <td className="px-5 py-3.5 text-ink-muted">{a.scan_name}</td>
-                    <td className="px-5 py-3.5">
+                  <tr key={`${a.scan_id}-${a.artefact_id}`}>
+                    <td className="font-medium text-foreground">{a.name}</td>
+                    <td className="capitalize text-ink-muted">{a.asset_type}</td>
+                    <td className="text-ink-muted">{a.scan_name}</td>
+                    <td>
                       <RiskBadge band={a.risk.risk_band} score={a.risk.final_score} />
                     </td>
-                    <td className="max-w-xs truncate px-5 py-3.5 font-mono text-xs text-ink-muted">
+                    <td className="max-w-xs truncate font-mono text-xs text-ink-muted">
                       {a.file_path}
                       {a.line_number ? `:${a.line_number}` : ""}
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="text-right">
                       <Link
                         href={`/scans/${a.scan_id}`}
-                        className="text-sm font-medium text-[#1B4B8C] hover:underline"
+                        className="text-sm font-medium text-primary hover:underline"
                       >
                         Open scan
                       </Link>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import ExecutiveSummaryStrip from "@/components/scan/ExecutiveSummaryStrip";
 import ScanExportCenter from "@/components/scan/ScanExportCenter";
 import PageHeader from "@/components/PageHeader";
+import StatCard from "@/components/StatCard";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
 import { apiFetch, getToken } from "@/lib/api";
@@ -108,27 +109,23 @@ export default function ExecutivePage() {
         </div>
       ) : (
         <>
-          <div className="mb-6 grid gap-3 sm:grid-cols-3">
-            <div className="panel px-4 py-3">
-              <p className="text-xs text-ink-muted">Completed scans</p>
-              <p className="text-2xl font-semibold tabular-nums">{completed.length}</p>
-            </div>
-            <div className="panel px-4 py-3">
-              <p className="text-xs text-ink-muted">Inventory across scans</p>
-              <p className="text-2xl font-semibold tabular-nums">{orgTotals.artefacts}</p>
-            </div>
-            <div className="panel px-4 py-3">
-              <p className="text-xs text-ink-muted">Open critical + high</p>
-              <p className="text-2xl font-semibold tabular-nums">
-                {orgTotals.critical} + {orgTotals.high}
-              </p>
-            </div>
+          <p className="console-section-label mb-3">Organization</p>
+          <div className="mb-8 grid gap-2.5 sm:grid-cols-3">
+            <StatCard label="Completed scans" value={completed.length} hint="Runs ready for executive review" />
+            <StatCard label="Inventory across scans" value={orgTotals.artefacts} hint="Total discovered crypto assets" />
+            <StatCard
+              label="Critical + high"
+              value={`${orgTotals.critical} + ${orgTotals.high}`}
+              dot="critical"
+              hint="Aggregated open risk bands"
+            />
           </div>
 
-          <div className="mb-6 panel p-4">
-            <label className="text-xs font-medium text-ink-muted" htmlFor="exec-scan">
+          <div className="mb-6 panel p-5">
+            <label className="console-section-label" htmlFor="exec-scan">
               Focus scan
             </label>
+            <p className="console-section-desc mb-2">Choose which completed run drives the summary below.</p>
             <select
               id="exec-scan"
               className="mt-1 h-10 w-full max-w-md border border-border bg-surface px-3 text-sm"

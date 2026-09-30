@@ -480,7 +480,11 @@ function ScanDetailPage() {
     <>
       <PageHeader
         title={scan.name}
-        description={scan.current_stage || `Scan ${scan.status}`}
+        description={
+          scan.status === "completed"
+            ? "Completed discovery run — review artefacts, Mosca timeline, and exports below."
+            : scan.current_stage || `Scan is ${scan.status}`
+        }
         breadcrumb={["ECDAT", "Scans", scan.name]}
         actions={
           scan.status === "completed" ? (
@@ -504,15 +508,23 @@ function ScanDetailPage() {
           ) : undefined
         }
       />
-      <div className="mb-6 flex flex-wrap items-center gap-3 border border-border bg-surface px-4 py-3 text-sm">
-        <span className="font-medium text-foreground">Scan ID</span>
-        <code className="break-all font-mono text-xs text-ink-muted">{id}</code>
+      <div className="console-meta-bar mb-6">
+        <StatusBadge status={scan.status} />
+        {scan.current_stage && scan.status !== "completed" && (
+          <span className="text-sm text-ink-muted">{scan.current_stage}</span>
+        )}
+        <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
+        <span className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Scan ID</span>
+        <code className="max-w-[min(100%,28rem)] truncate font-mono text-xs text-foreground" title={id}>
+          {id}
+        </code>
         <Button type="button" variant="outline" size="sm" onClick={copyScanId}>
-          {scanIdCopied ? "Copied" : "Copy scan ID"}
+          {scanIdCopied ? "Copied" : "Copy"}
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <p className="console-section-label mb-3">Run status</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Status" value={scan.status} hint="Pipeline state for this run" />
         <StatCard label="Progress" value={`${progress}%`} progress={progress} hint="Files processed vs total" />
         <StatCard label="Artefacts" value={scan.total_artefacts ?? 0} hint="Discovered crypto assets" />
@@ -520,7 +532,9 @@ function ScanDetailPage() {
         <StatCard label="High" value={scan.high_risk_count ?? 0} dot="high" hint="Elevated risk band" />
       </div>
       {scan.status === "completed" && summary && agility && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <>
+        <p className="console-section-label mb-3 mt-6">Quantum posture</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Shor-vulnerable"
             value={summary.shor_vulnerable_count ?? 0}
@@ -538,18 +552,22 @@ function ScanDetailPage() {
           <StatCard label="HSM / cloud KMS" value={summary.hsm_cloud_count ?? 0} hint="Managed key surfaces" />
           <StatCard label="Crypto libraries" value={summary.library_count ?? 0} hint="Linked crypto dependencies" />
         </div>
+        </>
       )}
       {scan.status === "completed" && summary && !agility && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <>
+        <p className="console-section-label mb-3 mt-6">Quantum posture</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Shor-vulnerable" value={summary.shor_vulnerable_count ?? 0} dot="critical" />
           <StatCard label="Classical hygiene" value={summary.classical_hygiene_count ?? 0} dot="high" />
           <StatCard label="HSM / cloud KMS" value={summary.hsm_cloud_count ?? 0} />
           <StatCard label="Crypto libraries" value={summary.library_count ?? 0} />
         </div>
+        </>
       )}
 
       {scan.status === "completed" && summary && (
-        <div className="mt-4">
+        <div className="mt-6">
           <ExecutiveSummaryStrip
             moscaCategory={headlineCategory}
             agility={agility}
@@ -564,16 +582,26 @@ function ScanDetailPage() {
       )}
 
       {scan.status !== "completed" && scan.status !== "failed" && (
-        <div className="relative mt-4 h-px bg-border">
-          <div
-            className="absolute left-0 top-0 h-px bg-[#1B4B8C] transition-[width] duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="console-scan-progress">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="console-section-title">Discovery in progress</p>
+            <span className="font-mono text-sm tabular-nums text-primary">{progress}%</span>
+          </div>
+          <p className="console-section-desc">
+            {scan.current_stage || "Processing archive"} — artefacts and risk scores appear when the run completes.
+          </p>
+          <div className="metric-bar mt-3" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+            <div className="metric-bar-fill" style={{ width: `${progress}%` }} />
+          </div>
         </div>
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mt-8 gap-6">
-        <TabsList variant="line" className="h-auto w-full justify-start rounded-none border-b border-border bg-transparent p-0">
+        <p className="console-section-label mb-1">Analysis workspace</p>
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start rounded-none border-b border-border bg-card/40 p-0 backdrop-blur-sm"
+        >
           <TabsTrigger value="overview" className="px-4 py-2.5">Overview</TabsTrigger>
           <TabsTrigger value="inventory" className="px-4 py-2.5">Artefacts</TabsTrigger>
           <TabsTrigger value="mosca" className="px-4 py-2.5">Mosca</TabsTrigger>
@@ -585,44 +613,41 @@ function ScanDetailPage() {
         <TabsContent value="overview">
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="panel p-6">
-              <h3 className="text-sm font-semibold text-foreground">Scan summary</h3>
-              <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-ink-muted">Target type</dt>
-                  <dd className="font-medium text-foreground">{scan.target_type}</dd>
+              <h3 className="console-section-title">Scan summary</h3>
+              <p className="console-section-desc">Metadata and detector coverage for this run.</p>
+              <dl className="console-kv mt-5">
+                <div className="console-kv-row">
+                  <dt>Target type</dt>
+                  <dd>{scan.target_type}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-muted">Files scanned</dt>
-                  <dd className="font-medium text-foreground">{scan.total_files ?? "—"}</dd>
+                <div className="console-kv-row">
+                  <dt>Files scanned</dt>
+                  <dd>{scan.total_files ?? "—"}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-muted">Total artefacts</dt>
-                  <dd className="font-medium text-foreground">{scan.total_artefacts ?? 0}</dd>
+                <div className="console-kv-row">
+                  <dt>Total artefacts</dt>
+                  <dd>{scan.total_artefacts ?? 0}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-muted">Created</dt>
-                  <dd className="font-medium text-foreground">
-                    {scan.created_at ? new Date(scan.created_at).toLocaleString() : "—"}
-                  </dd>
+                <div className="console-kv-row">
+                  <dt>Created</dt>
+                  <dd>{scan.created_at ? new Date(scan.created_at).toLocaleString() : "—"}</dd>
                 </div>
                 {summary?.coverage_note && (
-                  <div>
-                    <dt className="text-ink-muted">Coverage</dt>
-                    <dd className="mt-1 text-sm font-medium text-foreground">{summary.coverage_note}</dd>
+                  <div className="console-kv-row !items-start">
+                    <dt>Coverage</dt>
+                    <dd className="max-w-[32ch] text-left">{summary.coverage_note}</dd>
                   </div>
                 )}
                 {summary?.layers_present && summary.layers_present.length > 0 && (
-                  <div>
-                    <dt className="text-ink-muted">Detector layers</dt>
-                    <dd className="mt-1 font-medium text-foreground">
-                      {summary.layers_present.join(" · ")}
-                    </dd>
+                  <div className="console-kv-row !items-start">
+                    <dt>Detector layers</dt>
+                    <dd className="max-w-[32ch] text-left">{summary.layers_present.join(" · ")}</dd>
                   </div>
                 )}
                 {cbomValidation && (
-                  <div className="flex justify-between">
-                    <dt className="text-ink-muted">CycloneDX 1.6</dt>
-                    <dd className={cn("font-medium", cbomValidation.valid ? "text-[#1B7A3D]" : "text-[#B3261E]")}>
+                  <div className="console-kv-row">
+                    <dt>CycloneDX 1.6</dt>
+                    <dd className={cn(cbomValidation.valid ? "text-[#1B7A3D]" : "text-[#B3261E]")}>
                       {cbomValidation.valid ? "Valid" : `Invalid (${cbomValidation.error_count} errors)`}
                     </dd>
                   </div>
@@ -641,8 +666,8 @@ function ScanDetailPage() {
           {scan.status === "completed" && summary && (
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
               <div className="panel p-6">
-                <h3 className="text-sm font-semibold text-foreground">Quantum class (not all crypto is Shor)</h3>
-                <p className="mt-1 text-sm text-ink-muted">
+                <h3 className="console-section-title">Quantum class (not all crypto is Shor)</h3>
+                <p className="console-section-desc">
                   AES and HMAC are Grover-only. JWT packages are inspected, not scored as RSA. Public-key
                   (RSA/ECDH/ECDSA) is the harvest-now-decrypt-later set.
                 </p>
@@ -660,8 +685,8 @@ function ScanDetailPage() {
                 </ul>
               </div>
               <div className="panel p-6">
-                <h3 className="text-sm font-semibold text-foreground">Asset mix</h3>
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <h3 className="console-section-title">Asset mix</h3>
+                <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
                   {Object.entries(summary.asset_types || {}).map(([k, n]) => (
                     <div key={k} className="flex justify-between gap-2 border border-border px-3 py-2">
                       <dt className="capitalize text-ink-muted">{k}</dt>
@@ -681,8 +706,8 @@ function ScanDetailPage() {
           )}
           {scan.status === "completed" && (
             <div className="mt-6 panel p-6">
-              <h3 className="text-sm font-semibold text-foreground">Compare to another scan</h3>
-              <p className="mt-1 text-sm text-ink-muted">
+              <h3 className="console-section-title">Compare to another scan</h3>
+              <p className="console-section-desc">
                 Enter a baseline scan ID to see added/removed artefacts and Mosca category change.
               </p>
               <div className="mt-3 border border-[#1B4B8C] bg-surface px-4 py-3 text-xs text-ink-muted">
@@ -840,15 +865,15 @@ function ScanDetailPage() {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="console-data-table">
                   <thead>
-                    <tr className="border-b border-border text-left">
-                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Name</th>
-                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Type</th>
-                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Quantum</th>
-                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Risk</th>
-                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Location</th>
-                      <th className="px-5 py-3 text-xs font-medium text-ink-muted">Action</th>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Quantum</th>
+                      <th>Risk</th>
+                      <th>Location</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -858,24 +883,24 @@ function ScanDetailPage() {
                       return (
                         <Fragment key={a.artefact_id}>
                           <tr
-                            className="cursor-pointer border-b border-border transition-colors duration-150 hover:bg-surface"
+                            className="cursor-pointer"
                             onClick={() => setExpandedId(open ? null : a.artefact_id)}
                           >
-                            <td className="px-5 py-3.5 font-medium text-foreground">{a.name}</td>
-                            <td className="px-5 py-3.5 capitalize text-ink-muted">{a.asset_type}</td>
-                            <td className="px-5 py-3.5">
+                            <td className="font-medium text-foreground">{a.name}</td>
+                            <td className="capitalize text-ink-muted">{a.asset_type}</td>
+                            <td>
                               <span className={cn("border px-2 py-0.5 text-[10px] font-medium uppercase", quantumStyle(qb))}>
                                 {qb.replace("_", " ")}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5">
+                            <td>
                               <RiskBadge band={a.risk.risk_band} score={a.risk.final_score} />
                             </td>
-                            <td className="max-w-xs truncate px-5 py-3.5 text-ink-muted">
+                            <td className="max-w-xs truncate text-ink-muted">
                               {a.file_path}
                               {a.line_number ? `:${a.line_number}` : ""}
                             </td>
-                            <td className="px-5 py-3.5 text-ink-muted">
+                            <td className="text-ink-muted">
                               {a.recommendation?.action ?? "—"}
                             </td>
                           </tr>
@@ -967,8 +992,8 @@ function ScanDetailPage() {
             ) : (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Mosca theorem</h3>
-                  <p className="mt-1 text-sm text-ink-muted">
+                  <h3 className="console-section-title">Mosca theorem</h3>
+                  <p className="console-section-desc">
                     Adjust X and Y to model data lifetime and migration time against CRQC scenarios.
                   </p>
                   {mosca.formula && (
@@ -1042,25 +1067,25 @@ function ScanDetailPage() {
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto border border-border">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="console-data-table">
                     <thead>
-                      <tr className="border-b border-border bg-surface text-left">
-                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Scenario</th>
-                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Z (years)</th>
-                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Margin</th>
-                        <th className="px-4 py-3 text-xs font-medium text-ink-muted">Rating</th>
+                      <tr>
+                        <th>Scenario</th>
+                        <th>Z (years)</th>
+                        <th>Margin</th>
+                        <th>Rating</th>
                       </tr>
                     </thead>
                     <tbody>
                       {clientScenarios.map((s) => (
-                        <tr key={s.name} className="border-b border-border last:border-0">
-                          <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
-                          <td className="px-4 py-3 text-ink-muted">{s.z_value}</td>
-                          <td className={cn("px-4 py-3 font-medium", s.margin < 0 ? "text-[#B3261E]" : "text-[#1B7A3D]")}>
+                        <tr key={s.name}>
+                          <td className="font-medium text-foreground">{s.name}</td>
+                          <td className="text-ink-muted">{s.z_value}</td>
+                          <td className={cn("font-medium", s.margin < 0 ? "text-[#B3261E]" : "text-[#1B7A3D]")}>
                             {s.margin < 0 ? `-${Math.abs(s.margin)}y` : `+${s.margin}y`}
                           </td>
-                          <td className="px-4 py-3">
+                          <td>
                             <span className={cn(" border px-2 py-0.5 text-xs font-medium", urgencyStyle(s.category))}>
                               {s.category}
                             </span>
@@ -1094,7 +1119,7 @@ function ScanDetailPage() {
               {recs.map((r) => (
                 <div
                   key={r.artefact_id}
-                  className="border border-border border-l-4 border-l-[#1B4B8C] bg-background p-5"
+                  className="panel border-l-4 border-l-primary p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1167,9 +1192,9 @@ function ScanDetailPage() {
         </TabsContent>
 
         <TabsContent value="assistant">
-          <div className="border border-border bg-surface p-4 text-sm text-foreground">
-            <p className="font-medium">AI-generated narration (Groq)</p>
-            <p className="mt-1 text-ink-muted">
+          <div className="panel-muted p-4 text-sm text-foreground">
+            <p className="console-section-title">AI-generated narration (Groq)</p>
+            <p className="console-section-desc">
               Summaries and chat use only deterministic scan data. Artefacts, scores, and CBOM export
               remain authoritative. Detection is never performed by the model.
             </p>
@@ -1191,7 +1216,7 @@ function ScanDetailPage() {
             <div className="mt-6 space-y-6">
               <div className="panel p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-foreground">Executive summary</h3>
+                  <h3 className="console-section-title">Executive summary</h3>
                   <Button
                     type="button"
                     variant="outline"
@@ -1224,7 +1249,7 @@ function ScanDetailPage() {
               </div>
 
               <div className="panel p-6">
-                <h3 className="text-sm font-semibold text-foreground">Ask about this scan</h3>
+                <h3 className="console-section-title">Ask about this scan</h3>
                 <p className="mt-1 text-xs text-ink-muted">
                   If a baseline scan ID is set on Overview, chat includes the deterministic diff.
                 </p>

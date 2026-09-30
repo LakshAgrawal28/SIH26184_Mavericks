@@ -67,7 +67,7 @@ export function DiscoverSection() {
               </p>
             </div>
 
-            <div className="relative mt-8 flex min-h-[210px] items-center justify-center overflow-hidden rounded-xl border border-border bg-black/30 p-6">
+            <div className="relative mt-8 flex min-h-[210px] items-center justify-center overflow-hidden rounded-xl border border-border bg-surface/80 p-6">
               {activeStage === 1 && <div className="intel-scanline" aria-hidden />}
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div

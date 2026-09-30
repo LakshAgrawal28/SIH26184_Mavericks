@@ -22,7 +22,7 @@ export function StandardsMarquee() {
   ));
 
   return (
-    <div className="relative overflow-hidden border-y border-border bg-black/40 py-3" aria-hidden>
+    <div className="relative overflow-hidden border-y border-border bg-surface/90 py-3" aria-hidden>
       <div className="ecdat-marquee-track">
         <div className="ecdat-marquee-group">{row}</div>
         <div className="ecdat-marquee-group" aria-hidden>{row}</div>
