@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.services.ai_narration import ai_narration_enabled
+from app.services.ai_narration import ai_narration_enabled, ai_narration_unavailable_reason
 from scanner.accuracy.measure import measure_corpus
 from scanner.detectors.semgrep_detector import rules_dir, semgrep_available
 
@@ -32,9 +32,11 @@ def corpus_accuracy():
 @router.get("/meta/ai")
 def ai_narration_status():
     """Whether optional Groq narration is enabled (feature-flagged; off by default)."""
+    reason = ai_narration_unavailable_reason()
     return {
         "enabled": settings.ai_narration_enabled,
         "available": ai_narration_enabled(),
+        "reason": reason,
         "provider": "groq",
         "model": settings.groq_model if ai_narration_enabled() else None,
         "disclaimer": "Narration does not affect detection, scoring, or CBOM export.",

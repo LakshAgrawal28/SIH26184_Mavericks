@@ -54,8 +54,22 @@ Chat rules:
 SYSTEM_PROMPT = NARRATE_SYSTEM_PROMPT
 
 
+def _groq_key_configured() -> bool:
+    key = settings.groq_api_key
+    return bool(key and str(key).strip())
+
+
 def ai_narration_enabled() -> bool:
-    return bool(settings.ai_narration_enabled and settings.groq_api_key)
+    return bool(settings.ai_narration_enabled and _groq_key_configured())
+
+
+def ai_narration_unavailable_reason() -> str | None:
+    """Human-readable reason when narration is off; None when fully available."""
+    if not settings.ai_narration_enabled:
+        return "Set AI_NARRATION_ENABLED=true on the API server."
+    if not _groq_key_configured():
+        return "Set GROQ_API_KEY on the API server (Groq console → API keys)."
+    return None
 
 
 def build_scan_context(

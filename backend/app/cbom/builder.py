@@ -220,34 +220,269 @@ def _iso_datetime(value: str) -> str:
     return value
 
 
+def _pdf_summary_metrics(scan: Scan, artefacts: list[Artefact]) -> dict:
+    from app.services.scan_service import artefact_quantum_break
+
+    bands: dict[str, int] = {}
+    primitives: dict[str, int] = {}
+    shor_n = 0
+    broken_n = 0
+    safe_n = 0
+    for a in artefacts:
+        bands[a.risk_band or "UNKNOWN"] = bands.get(a.risk_band or "UNKNOWN", 0) + 1
+        prim = a.primitive or "unknown"
+        primitives[prim] = primitives.get(prim, 0) + 1
+        qb = artefact_quantum_break(a) or "unknown"
+        if qb == "shor":
+            shor_n += 1
+        elif qb == "broken_classical":
+            broken_n += 1
+        elif qb == "none":
+            safe_n += 1
+    total = len(artefacts) or 1
+    exposed = shor_n + broken_n
+    agility_index = round(max(0.0, min(100.0, (1 - exposed / total) * 100)), 1)
+    return {
+        "bands": bands,
+        "primitives": primitives,
+        "agility_index": agility_index,
+        "shor_exposure_pct": round(shor_n / total * 100, 1),
+        "pqc_safe_pct": round(safe_n / total * 100, 1),
+        "shor_n": shor_n,
+        "broken_n": broken_n,
+    }
+
+
 def build_pdf_summary(scan: Scan, artefacts: list[Artefact], mosca: dict) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT
     from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    metrics = _pdf_summary_metrics(scan, artefacts)
+    params = mosca.get("parameters") or {}
+    x_val = params.get("data_lifetime_x", scan.data_lifetime_x)
+    y_val = params.get("migration_time_y", scan.migration_time_y)
+    total_time = params.get("total_time_needed", float(x_val) + float(y_val))
+    overall = mosca.get("overall_category", "N/A")
+    interpretation = mosca.get("interpretation") or ""
+    created = scan.created_at.strftime("%Y-%m-%d %H:%M UTC") if scan.created_at else "—"
+    completed = scan.completed_at.strftime("%Y-%m-%d %H:%M UTC") if scan.completed_at else "—"
 
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    y = 750
-    lines = [
-        "ECDAT Executive Summary Report",
-        f"Scan: {scan.name}",
-        f"Status: {scan.status}",
-        f"Total artefacts: {len(artefacts)}",
-        f"Critical: {scan.critical_risk_count} | High: {scan.high_risk_count}",
-        f"Mosca overall: {mosca.get('overall_category', 'N/A')}",
-        f"CycloneDX: 1.6 CBOM (ECMA-424) schema-validated",
-        "",
-        "Top findings:",
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
+        topMargin=0.65 * inch,
+        bottomMargin=0.65 * inch,
+        title=f"ECDAT Executive Report — {scan.name}",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "EcdatTitle",
+        parent=styles["Heading1"],
+        fontSize=20,
+        textColor=colors.HexColor("#0D3B66"),
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        "EcdatSubtitle",
+        parent=styles["Normal"],
+        fontSize=10,
+        textColor=colors.HexColor("#4A5568"),
+        spaceAfter=14,
+    )
+    h2 = ParagraphStyle(
+        "EcdatH2",
+        parent=styles["Heading2"],
+        fontSize=12,
+        textColor=colors.HexColor("#1B4B8C"),
+        spaceBefore=10,
+        spaceAfter=6,
+    )
+    body = ParagraphStyle(
+        "EcdatBody",
+        parent=styles["Normal"],
+        fontSize=9.5,
+        leading=13,
+        alignment=TA_LEFT,
+    )
+    small = ParagraphStyle(
+        "EcdatSmall",
+        parent=body,
+        fontSize=8,
+        textColor=colors.HexColor("#5C6770"),
+    )
+
+    story: list = []
+    story.append(Paragraph("ECDAT Executive Summary Report", title_style))
+    story.append(
+        Paragraph(
+            "Enterprise Cryptographic Discovery &amp; Analysis Tool · NTRO SIH 2026 · "
+            "Deterministic findings; CycloneDX 1.6 CBOM (ECMA-424)",
+            subtitle_style,
+        )
+    )
+
+    story.append(Paragraph("Executive overview", h2))
+    exec_text = (
+        f"Scan <b>{scan.name}</b> ({scan.target_type or 'target'}) completed with "
+        f"<b>{scan.total_artefacts}</b> cryptographic artefacts. "
+        f"<b>{scan.critical_risk_count}</b> critical and <b>{scan.high_risk_count}</b> high-severity "
+        f"items require leadership attention. Cryptographic agility index: "
+        f"<b>{metrics['agility_index']}/100</b> "
+        f"(higher is better — share of inventory not exposed to Shor/broken-classical risk). "
+        f"PQC-ready or classical-safe share: <b>{metrics['pqc_safe_pct']}%</b>."
+    )
+    story.append(Paragraph(exec_text, body))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("Scan metadata", h2))
+    meta_rows = [
+        ["Scan ID", str(scan.id)],
+        ["Status", scan.status],
+        ["Files scanned", str(scan.total_files)],
+        ["Artefacts", str(scan.total_artefacts)],
+        ["Started", created],
+        ["Completed", completed],
+        ["Export", "CycloneDX 1.6 CBOM JSON + this PDF"],
     ]
-    for art in sorted(artefacts, key=lambda a: a.final_risk_score, reverse=True)[:10]:
-        lines.append(f"- {art.name} ({art.risk_band}) -> {art.recommendation_action or 'N/A'}")
+    meta_table = Table(meta_rows, colWidths=[1.55 * inch, 4.7 * inch])
+    meta_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#4A5568")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    story.append(meta_table)
+    story.append(Spacer(1, 6))
 
-    for line in lines:
-        c.drawString(50, y, line[:90])
-        y -= 18
-        if y < 50:
-            c.showPage()
-            y = 750
+    story.append(Paragraph("Risk &amp; agility metrics", h2))
+    metric_rows = [
+        ["Metric", "Value"],
+        ["Agility index (0–100)", f"{metrics['agility_index']}"],
+        ["Shor-vulnerable exposure", f"{metrics['shor_exposure_pct']}% ({metrics['shor_n']} artefacts)"],
+        ["Broken classical exposure", f"{metrics['broken_n']} artefacts"],
+        ["PQC-safe / none quantum break", f"{metrics['pqc_safe_pct']}%"],
+        ["Critical count", str(scan.critical_risk_count)],
+        ["High count", str(scan.high_risk_count)],
+    ]
+    for band in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN"):
+        if band in metrics["bands"]:
+            metric_rows.append([f"Band: {band}", str(metrics["bands"][band])])
+    m_table = Table(metric_rows, colWidths=[2.4 * inch, 3.85 * inch])
+    m_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E8EEF4")),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E0")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]),
+            ]
+        )
+    )
+    story.append(m_table)
+    story.append(Spacer(1, 8))
 
-    c.save()
+    story.append(Paragraph("Mosca theorem &amp; harvest-now-decrypt-later", h2))
+    mosca_body = (
+        f"Data lifetime <b>X = {x_val}</b> years · Migration time <b>Y = {y_val}</b> years · "
+        f"Required horizon <b>X + Y = {total_time}</b> years. "
+        f"Overall Mosca category: <b>{overall}</b>. "
+        f"{interpretation}"
+    )
+    story.append(Paragraph(mosca_body, body))
+    scenarios = mosca.get("scenarios") or []
+    if scenarios:
+        sc_rows = [["Scenario (Z)", "Margin (Z − X − Y)", "Category"]]
+        for sc in scenarios[:6]:
+            sc_rows.append(
+                [
+                    f"{sc.get('name', '')} (Z={sc.get('z_value')})",
+                    str(sc.get("margin")),
+                    str(sc.get("category")),
+                ]
+            )
+        sc_table = Table(sc_rows, colWidths=[2.5 * inch, 1.5 * inch, 2.25 * inch])
+        sc_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E8EEF4")),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E0")),
+                ]
+            )
+        )
+        story.append(Spacer(1, 6))
+        story.append(sc_table)
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("Top findings (by risk score)", h2))
+    top = sorted(artefacts, key=lambda a: a.final_risk_score, reverse=True)[:12]
+    if top:
+        find_rows = [["Artefact", "Band", "Algorithm", "Location", "PQC action"]]
+        for art in top:
+            loc = art.file_path or "—"
+            if art.line_number:
+                loc = f"{loc}:{art.line_number}"
+            find_rows.append(
+                [
+                    (art.name or "—")[:42],
+                    art.risk_band or "—",
+                    (art.algorithm or art.primitive or "—")[:28],
+                    loc[:48],
+                    (art.recommendation_action or art.primary_pqc or "Review")[:32],
+                ]
+            )
+        f_table = Table(find_rows, colWidths=[1.35 * inch, 0.65 * inch, 1.1 * inch, 1.85 * inch, 1.3 * inch])
+        f_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0D3B66")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E0")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(f_table)
+    else:
+        story.append(Paragraph("No artefacts recorded for this scan.", body))
+
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("PQC migration context", h2))
+    story.append(
+        Paragraph(
+            "Recommendations in ECDAT map classical algorithms to NIST post-quantum candidates "
+            "(ML-KEM, ML-DSA, SLH-DSA) using deterministic rules—not generative AI. "
+            "Use the exported CycloneDX CBOM for GRC tooling and track remediation in your "
+            "crypto-agility program.",
+            body,
+        )
+    )
+    story.append(Spacer(1, 12))
+    story.append(
+        Paragraph(
+            "Generated by ECDAT. Deterministic artefact inventory and CBOM export remain authoritative. "
+            "This PDF is suitable for auditor and leadership briefings.",
+            small,
+        )
+    )
+
+    doc.build(story)
     buffer.seek(0)
     return buffer.read()

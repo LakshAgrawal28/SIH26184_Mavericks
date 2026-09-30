@@ -3,7 +3,18 @@ import pytest
 
 from app.config import settings
 from app.api.v1.narration import NarrateRequest
-from app.services.ai_narration import build_scan_context, validate_grounding, wrap_evidence_block
+from app.services.ai_narration import (
+    ai_narration_unavailable_reason,
+    build_scan_context,
+    validate_grounding,
+    wrap_evidence_block,
+)
+
+
+def test_ai_unavailable_reason_missing_key(monkeypatch):
+    monkeypatch.setattr(settings, "ai_narration_enabled", True)
+    monkeypatch.setattr(settings, "groq_api_key", None)
+    assert "GROQ_API_KEY" in (ai_narration_unavailable_reason() or "")
 
 
 def test_validate_grounding_rejects_wrong_artefact_count():

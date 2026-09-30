@@ -103,7 +103,11 @@ function ScanDetailPage() {
   const [diffError, setDiffError] = useState<string | null>(null);
   const [diffHighlight, setDiffHighlight] = useState(false);
   const [scanIdCopied, setScanIdCopied] = useState(false);
-  const [aiStatus, setAiStatus] = useState<{ available: boolean; enabled: boolean } | null>(null);
+  const [aiStatus, setAiStatus] = useState<{
+    available: boolean;
+    enabled: boolean;
+    reason?: string | null;
+  } | null>(null);
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrativeMeta, setNarrativeMeta] = useState<{
     contextTruncated?: boolean;
@@ -129,9 +133,15 @@ function ScanDetailPage() {
   }
 
   useEffect(() => {
-    apiFetch<{ available: boolean; enabled: boolean }>("/api/v1/meta/ai")
+    apiFetch<{ available: boolean; enabled: boolean; reason?: string | null }>("/api/v1/meta/ai")
       .then(setAiStatus)
-      .catch(() => setAiStatus({ available: false, enabled: false }));
+      .catch(() =>
+        setAiStatus({
+          available: false,
+          enabled: false,
+          reason: "Could not reach the API to check AI status.",
+        })
+      );
   }, []);
 
   useEffect(() => {
@@ -1166,9 +1176,10 @@ function ScanDetailPage() {
           </div>
 
           {aiStatus && !aiStatus.available && (
-            <p className="mt-4 text-sm text-ink-muted">
-              Assistant is off. Enable <code className="border border-border bg-surface px-1 font-mono text-xs">AI_NARRATION_ENABLED</code> and
-              set <code className="border border-border bg-surface px-1 font-mono text-xs">GROQ_API_KEY</code> on the API server.
+            <p className="mt-4 border border-border bg-surface px-3 py-2 text-sm text-ink-muted">
+              Assistant unavailable.{" "}
+              {aiStatus.reason ||
+                "Set AI_NARRATION_ENABLED=true and GROQ_API_KEY on the API server (e.g. Render → ecdat-api → Environment)."}
             </p>
           )}
 

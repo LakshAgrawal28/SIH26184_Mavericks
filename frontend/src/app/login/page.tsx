@@ -1,18 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HeroNetwork } from "@/components/landing/HeroNetwork";
 import { RevealText } from "@/components/landing/primitives";
 import { BorderBeamCard } from "@/components/marketing/BorderBeamCard";
 import { MarketingLayout } from "@/components/marketing/SiteChrome";
-import { API_URL, fetchWithTimeout, waitForApi } from "@/lib/api";
+import { API_URL, fetchWithTimeout } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-type ApiStatus = "checking" | "online" | "offline";
 
 const DEMO_ACCOUNT = {
   email: "admin@example.com",
@@ -26,41 +24,12 @@ const HIGHLIGHTS = [
   "CycloneDX 1.6 export validation",
 ];
 
-function apiStatusDotClass(status: ApiStatus): string {
-  if (status === "online") return "bg-[var(--intel-green)]";
-  if (status === "offline") return "bg-[var(--intel-red)]";
-  return "bg-[var(--intel-amber)] animate-pulse";
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
-  const [wakeAttempt, setWakeAttempt] = useState(0);
-
-  const checkApi = useCallback(async () => {
-    setApiStatus("checking");
-    setWakeAttempt(0);
-    const online = await waitForApi(setWakeAttempt);
-    setApiStatus(online ? "online" : "offline");
-    return online;
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const online = await waitForApi((attempt) => {
-        if (!cancelled) setWakeAttempt(attempt);
-      });
-      if (!cancelled) setApiStatus(online ? "online" : "offline");
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   function applyDemoAccount() {
     setEmail(DEMO_ACCOUNT.email);
@@ -73,15 +42,6 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      if (apiStatus !== "online") {
-        const online = await checkApi();
-        if (!online) {
-          throw new Error(
-            "Backend is still waking up. Wait a moment, then click Retry connection or try again."
-          );
-        }
-      }
-
       const res = await fetchWithTimeout(`${API_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,10 +59,8 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setError("Request timed out. The backend may still be waking — try again.");
-        setApiStatus("offline");
       } else if (err instanceof TypeError) {
-        setError("Cannot reach the API. Click Retry connection or wait 30–60 seconds.");
-        setApiStatus("offline");
+        setError("Cannot reach the API. Wait 30–60 seconds if the server was idle, then try again.");
       } else {
         setError(err instanceof Error ? err.message : "Login failed");
       }
@@ -110,15 +68,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
-
-  const statusMessage =
-    apiStatus === "checking"
-      ? wakeAttempt > 1
-        ? `waking backend… (attempt ${wakeAttempt})`
-        : "connecting…"
-      : apiStatus === "online"
-        ? "connected"
-        : "unreachable — click Retry or wait for cold start";
 
   return (
     <MarketingLayout className="relative">
@@ -179,38 +128,6 @@ export default function LoginPage() {
             <BorderBeamCard innerClassName="intel-glass p-8">
               <h2 className="intel-heading text-[1.35rem] text-foreground">Operator sign-in</h2>
               <p className="mt-1 text-sm text-ink-muted">Console access for your deployment</p>
-
-              <div
-                className="mt-4 flex items-center justify-between gap-2 rounded-lg border border-border bg-surface/80 px-3 py-2 font-mono text-xs"
-                role="status"
-                aria-live="polite"
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${apiStatusDotClass(apiStatus)}`}
-                    aria-hidden
-                  />
-                  <span className="truncate text-foreground">
-                    API <span className="text-ink-muted">{statusMessage}</span>
-                  </span>
-                </div>
-                {apiStatus !== "online" && (
-                  <button
-                    type="button"
-                    onClick={() => void checkApi()}
-                    disabled={apiStatus === "checking"}
-                    className="shrink-0 font-medium text-primary hover:underline disabled:opacity-50"
-                  >
-                    Retry
-                  </button>
-                )}
-              </div>
-
-              {apiStatus === "checking" && wakeAttempt > 0 && (
-                <p className="mt-2 text-xs text-[var(--intel-amber)]">
-                  Free-tier Render spins down after idle. First request can take up to 60 seconds.
-                </p>
-              )}
 
               <div className="panel-muted mt-5 px-4 py-3.5">
                 <p className="text-xs font-medium text-foreground">{DEMO_ACCOUNT.label}</p>

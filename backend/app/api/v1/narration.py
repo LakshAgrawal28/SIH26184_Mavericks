@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, get_scan_for_user
 from app.db.session import get_db
 from app.models import AIResult, User
-from app.services.ai_narration import ai_narration_enabled, chat_about_scan, narrate_scan
+from app.services.ai_narration import (
+    ai_narration_enabled,
+    ai_narration_unavailable_reason,
+    chat_about_scan,
+    narrate_scan,
+)
 from app.services.scan_diff import validate_scan_comparison
 
 router = APIRouter(prefix="/scans", tags=["narration"])
@@ -28,10 +33,8 @@ class ChatRequest(BaseModel):
 
 def _require_ai():
     if not ai_narration_enabled():
-        raise HTTPException(
-            status_code=503,
-            detail="AI narration is disabled. Set AI_NARRATION_ENABLED=true and GROQ_API_KEY.",
-        )
+        reason = ai_narration_unavailable_reason() or "AI narration is disabled."
+        raise HTTPException(status_code=503, detail=reason)
 
 
 @router.post("/{scan_id}/narrate")

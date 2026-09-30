@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from app.api.v1 import auth, meta, narration, reports, scans
 from app.config import settings
+from app.services.ai_narration import ai_narration_enabled, ai_narration_unavailable_reason
 from app.core.security import ensure_default_admin
 from app.corpus_bootstrap import ensure_quick_start_archives
 from app.db.migrate import ensure_schema_patches
@@ -25,6 +26,10 @@ async def lifespan(app: FastAPI):
         ensure_default_admin(db)
     finally:
         db.close()
+    if settings.ai_narration_enabled and not ai_narration_enabled():
+        logger.warning("AI narration misconfigured: %s", ai_narration_unavailable_reason())
+    elif ai_narration_enabled():
+        logger.info("AI narration enabled (Groq model %s)", settings.groq_model)
     yield
 
 

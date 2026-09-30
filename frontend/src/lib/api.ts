@@ -88,8 +88,12 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
     const err = await res.text();
     let message = err || res.statusText;
     try {
-      const parsed = JSON.parse(err) as { detail?: string };
-      if (parsed.detail) message = parsed.detail;
+      const parsed = JSON.parse(err) as { detail?: string | { msg?: string }[] };
+      if (typeof parsed.detail === "string") {
+        message = parsed.detail;
+      } else if (Array.isArray(parsed.detail) && parsed.detail[0]?.msg) {
+        message = parsed.detail[0].msg;
+      }
     } catch {
       // Keep the plain-text response when it is not JSON.
     }
